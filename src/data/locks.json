@@ -1,0 +1,29 @@
+[
+    {
+      "id": 1,
+      "lockNumber": "L001",
+      "rentRate": 5000,
+      "waterRate": 200,
+      "electricRate": 300,
+      "discount": 500,
+      "dueDay": 5,
+      "note": "ล๊อกขายผลไม้",
+      "tenant": {
+        "id": 1,
+        "firstName": "สมชาย",
+        "lastName": "ใจดี",
+        "contact": "0812345678"
+      },
+      "payments": [
+        {
+          "month": "2023-10",
+          "paid": true
+        },
+        {
+          "month": "2023-11",
+          "paid": false
+        }
+      ]
+    }
+  ]
+  

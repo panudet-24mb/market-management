@@ -1,0 +1,40 @@
+version: "3.7"
+services:
+
+  market-management-db:
+    container_name: market-management-db
+    image: postgres:16.1
+    environment:
+      POSTGRES_DB: market
+      POSTGRES_USER: n0ksoftDev
+      POSTGRES_PASSWORD: noksoftPassw0rd13
+      PGDATA: /var/lib/postgresql/data
+    command: postgres -c 'max_connections=1000'
+    volumes:
+      - ./db:/docker-entrypoint-initdb.d
+    ports:
+      - "0.0.0.0:22222:5432"
+    
+  market-pgadmin:
+    container_name: market-pgadmin
+    image: dpage/pgadmin4:8.3
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-dev@noksoft.co.th}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-noksoftPassw0rd13}
+      PGADMIN_LISTEN_PORT: 80
+    ports:
+      - "18992:80"
+    volumes:
+      - market-pgadmin-data:/var/lib/pgadmin
+
+
+
+volumes:
+  market-pgadmin-data:
+  # esdata:
+  #   driver: local
+networks:
+  postgres:
+    driver: bridge
+

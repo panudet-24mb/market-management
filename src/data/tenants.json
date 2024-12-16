@@ -1,0 +1,29 @@
+[
+    {
+      "id": 1,
+      "firstName": "สมชาย",
+      "lastName": "ใจดี",
+      "contact": "0812345678",
+      "rentRate": 5000,
+      "deposit": 10000,
+      "advance": 5000,
+      "note": "จ่ายตรงเวลาทุกเดือน",
+      "profileImage": null,
+      "idDocument": null,
+      "contractDocument": null
+    },
+    {
+      "id": 2,
+      "firstName": "สมหญิง",
+      "lastName": "สายใจ",
+      "contact": "somh@domain.com",
+      "rentRate": 6000,
+      "deposit": 12000,
+      "advance": 6000,
+      "note": "เคยล่าช้าหนึ่งครั้ง",
+      "profileImage": null,
+      "idDocument": null,
+      "contractDocument": null
+    }
+  ]
+  
