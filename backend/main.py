@@ -1,7 +1,9 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
+from sqlalchemy.orm import joinedload
 from typing import List
+from fastapi.staticfiles import StaticFiles
 from database import SessionLocal, engine
 from models import Base , Tenant, Lock, Contract, Document, Bill, Zone
 from crud import (
@@ -16,13 +18,21 @@ from crud import (
 # import CORS
 from fastapi.middleware.cors import CORSMiddleware
 import os 
+from datetime import datetime
 
 UPLOAD_DIR = "./uploads"
+
+#static files
+#read file 
+
+
+
 
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 origins = [
     "*"
@@ -78,7 +88,14 @@ def create_contract_api(
     end_date: str = Form(...),
     contract_number: str = Form(None),
     files: List[UploadFile] = File([]),
+    rent_rate: float = Form(...),
+    water_rate: float = Form(...),
+    electric_rate: float = Form(...),
+    advance: float = Form(...),
+    deposit: float = Form(...),
+    note: str = Form(...),
     db: Session = Depends(get_db),
+
 ):
     # Validate inputs
     if not tenant_id or not start_date or not end_date:
@@ -97,6 +114,12 @@ def create_contract_api(
         end_date=end_date,
         contract_number=contract_number,
         status="Active",
+        rent_rate=rent_rate,
+        water_rate=water_rate,
+        electric_rate=electric_rate,
+        advance=advance,
+        deposit=deposit,
+        note=note
     )
     db.add(new_contract)
     db.commit()
@@ -129,10 +152,90 @@ def create_contract_api(
     response_data["documents"] = [doc.__dict__ for doc in uploaded_files]
 
     return response_data
-@app.get("/api/contracts/tenant/{tenant_id}")
-def get_contracts_by_tenant_api(tenant_id: int, db: Session = Depends(get_db)):
-    return get_contracts_by_tenant(db, tenant_id)
+# @app.get("/api/contracts/tenant/{tenant_id}")
+# def get_contracts_by_tenant_api(tenant_id: int, db: Session = Depends(get_db)):
+#     return get_contracts_by_tenant(db, tenant_id)
 
+@app.post("/api/contracts/{contract_id}/documents")
+async def add_documents_to_contract(
+    contract_id: int,
+    files: list[UploadFile] = File(...),
+    db: Session = Depends(get_db),
+):
+    # Validate contract exists
+    contract = db.query(Contract).filter(Contract.id == contract_id).first()
+    if not contract:
+        raise HTTPException(status_code=404, detail="Contract not found")
+
+    # Define the directory path for storing files
+    contract_number = contract.contract_number
+    
+    dir_path = f"uploads/{contract_number}"
+    os.makedirs(dir_path, exist_ok=True)  # Create the directory if it does not exist
+
+    # Save files and create document entries
+    documents = []
+    for file in files:
+        file_path = os.path.join(dir_path, file.filename)
+        try:
+            with open(file_path, "wb") as f:
+                f.write(file.file.read())
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")
+
+        document = Document(
+            contract_id=contract_id,
+            filename=file.filename,
+            path=file_path,
+            contract_type="general"
+        )
+        db.add(document)
+        documents.append(document)
+
+    db.commit()
+
+    return {"message": "Documents added successfully", "documents": documents}
+
+@app.get("/api/contracts/tenant/{tenant_id}")
+def get_contracts_by_tenant(tenant_id: int, db: Session = Depends(get_db)):
+    contracts = (
+        db.query(Contract)
+        .options(joinedload(Contract.documents))  # Eagerly load documents for contracts
+        .filter(Contract.tenant_id == tenant_id)
+        .all()
+    )
+
+    if not contracts:
+        raise HTTPException(status_code=200, detail="No contracts found for this tenant.")
+
+    # Construct the response with documents included
+    result = []
+    for contract in contracts:
+        result.append({
+            "id": contract.id,
+            "lock_id": contract.lock_id,
+            "tenant_id": contract.tenant_id,
+            "contract_number": contract.contract_number,
+            "start_date": contract.start_date,
+            "end_date": contract.end_date,
+            "status": contract.status,
+            "rent_rate": contract.rent_rate,
+            "water_rate": contract.water_rate,
+            "electric_rate": contract.electric_rate,
+            "advance": contract.advance,
+            "deposit": contract.deposit,
+            "documents": [
+                {
+                    "id": doc.id,
+                    "contract_type": doc.contract_type,
+                    "filename": doc.filename,
+                    "path": doc.path,
+                }
+                for doc in contract.documents
+            ]
+        })
+
+    return result
 # Bill Endpoints
 @app.post("/api/bills")
 def create_bill_api(bill_data: dict, db: Session = Depends(get_db)):

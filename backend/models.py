@@ -46,6 +46,10 @@ class Contract(Base):
     rent_rate = Column(DECIMAL)
     water_rate = Column(DECIMAL)
     electric_rate = Column(DECIMAL)
+    advance = Column(DECIMAL)
+    deposit = Column(DECIMAL)
+    note = Column(Text)
+    
 
     tenant = relationship("Tenant", back_populates="contracts")
     lock = relationship("Lock", back_populates="contracts")

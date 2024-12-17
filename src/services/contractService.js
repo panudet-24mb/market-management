@@ -10,6 +10,19 @@ const contractService = {
     return await response.json();
   },
 
+  addDocumentsToContract: async (contractId, formData) => {
+    const response = await fetch(`${API_URL}/contracts/${contractId}/documents`, {
+      method: 'POST',
+      body: formData,
+    });
+  
+    if (!response.ok) {
+      const errorMessage = await response.text();
+      throw new Error(`Failed to add documents: ${errorMessage}`);
+    }
+  
+    return await response.json();
+  },  
     createContract: async (formData) => {
       const response = await fetch(`${API_URL}/contracts`, {
         method: 'POST',

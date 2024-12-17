@@ -14,106 +14,93 @@ import {
   Stack,
   Spinner,
   useToast,
-  useDisclosure,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalCloseButton,
-  ModalBody,
-  ModalFooter,
-  FormControl,
-  FormLabel,
-  Input,
-  Select,
   Avatar,
-  Divider,
+  Wrap,
+  WrapItem,
 } from '@chakra-ui/react';
 import { useParams } from 'react-router-dom';
 import tenantService from '../../services/tenentService';
 import contractService from '../../services/contractService';
 import lockService from '../../services/lockService';
+import CreateContractModal from '../../components/CreateContractModal';
+import AddDocumentsModal from '../../components/AddDocumentsModal';
 
 const TenantDetailPage = () => {
   const { id } = useParams();
   const [tenant, setTenant] = useState(null);
   const [locks, setLocks] = useState([]);
+  const [contracts, setContracts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [contractDetails, setContractDetails] = useState({
-    lockId: '',
-    startDate: '',
-    endDate: '',
-    contractDocuments: [],
+    lock_id: '',
+    start_date: '',
+    end_date: '',
+    rent_rate: '',
+    water_rate: '',
+    electric_rate: '',
+    advance: '',
+    deposit: '',
+    note: '',
+    documents: [],
   });
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [selectedContract, setSelectedContract] = useState(null);
   const toast = useToast();
+  const [isContractModalOpen, setIsContractModalOpen] = useState(false);
+  const [isAddDocumentsModalOpen, setIsAddDocumentsModalOpen] = useState(false);
+
+  const fetchTenantDetails = async () => {
+    setLoading(true);
+    try {
+      const tenantData = await tenantService.getTenantById(id);
+      setTenant(tenantData);
+
+      const tenantContracts = await contractService.getContractsWithDocumentsByTenantId(id);
+      setContracts(tenantContracts || []);
+
+      const lockData = await lockService.getLocks();
+      setLocks(lockData || []);
+    } catch (error) {
+      toast({
+        title: 'Error loading tenant details',
+        description: error.message || 'An error occurred while fetching tenant details.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchTenantDetails = async () => {
-      try {
-        const tenantData = await tenantService.getTenantById(id);
-        const tenantContracts = await contractService.getContractsWithDocumentsByTenantId(id);
-        const lockData = await lockService.getLocks();
-
-        setTenant({ ...tenantData, contracts: tenantContracts });
-        setLocks(lockData);
-      } catch (error) {
-        toast({
-          title: 'Error loading tenant details',
-          description: error.message || 'An error occurred while fetching tenant details.',
-          status: 'error',
-          duration: 3000,
-          isClosable: true,
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchTenantDetails();
-  }, [id, toast]);
+  }, [id]);
 
-  const handleCreateContract = async () => {
+  const handleAddDocuments = async (newDocuments) => {
+    if (!selectedContract) return;
+
     try {
       const formData = new FormData();
-      formData.append('tenantId', tenant.id);
-      formData.append('lockId', contractDetails.lockId);
-      formData.append('startDate', contractDetails.startDate);
-      formData.append('endDate', contractDetails.endDate);
-
-      contractDetails.contractDocuments.forEach((file) => {
-        formData.append('documents', file);
+      newDocuments.forEach((file) => {
+        formData.append('files', file);
       });
 
-      const savedContract = await contractService.createContract(formData);
+      await contractService.addDocumentsToContract(selectedContract.id, formData);
 
       toast({
-        title: 'Contract created successfully',
-        description: `Contract ${savedContract.contractNumber} has been created.`,
+        title: 'Documents added successfully',
+        description: 'New documents have been added to the contract.',
         status: 'success',
         duration: 3000,
         isClosable: true,
       });
 
-      setTenant((prevTenant) => ({
-        ...prevTenant,
-        contracts: Array.isArray(prevTenant.contracts)
-          ? [...prevTenant.contracts, savedContract]
-          : [savedContract],
-      }));
-
-      setContractDetails({
-        lockId: '',
-        startDate: '',
-        endDate: '',
-        contractDocuments: [],
-      });
-
-      onClose();
+      fetchTenantDetails();
+      setIsAddDocumentsModalOpen(false);
     } catch (error) {
       toast({
-        title: 'Error creating contract',
-        description: error.message || 'An error occurred while creating the contract.',
+        title: 'Error adding documents',
+        description: error.message || 'An error occurred while adding documents.',
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -121,11 +108,11 @@ const TenantDetailPage = () => {
     }
   };
 
-  const handleFileChange = (e) => {
-    setContractDetails({
-      ...contractDetails,
-      contractDocuments: Array.from(e.target.files),
-    });
+  const getDaysLeft = (endDate) => {
+    const today = new Date();
+    const end = new Date(endDate);
+    const diffTime = end - today;
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // Convert milliseconds to days
   };
 
   if (loading) {
@@ -136,160 +123,150 @@ const TenantDetailPage = () => {
     );
   }
 
-  if (!tenant) {
-    return (
-      <Box p={6} textAlign="center">
-        <Text fontSize="lg" color="gray.500">
-          Tenant not found.
-        </Text>
-      </Box>
-    );
-  }
-
   return (
     <Box p={6}>
       {/* Tenant Details Section */}
-      <Box
-        borderWidth="1px"
-        borderRadius="lg"
-        p={6}
-        mb={6}
-        boxShadow="lg"
-        bg="white"
-      >
-        <Stack direction="row" spacing={6} alignItems="center">
+      <Box borderWidth="1px" borderRadius="lg" p={6} mb={6} boxShadow="lg" bg="white">
+        <Stack direction={['column', 'row']} spacing={6} alignItems="center">
           <Avatar
             size="xl"
-            src={tenant.profile_image || 'https://via.placeholder.com/150'}
-            name={`${tenant.first_name} ${tenant.last_name}`}
+            src={tenant?.profile_image || 'https://via.placeholder.com/150'}
+            name={`${tenant?.first_name} ${tenant?.last_name}`}
           />
           <Box>
-            <Heading size="lg">{tenant.first_name} {tenant.last_name}</Heading>
-            <Text fontSize="md" color="gray.600">{tenant.nick_name ? `Nickname: ${tenant.nick_name}` : 'No nickname'}</Text>
-            <Text fontSize="md"><strong>Contact:</strong> {tenant.contact || 'N/A'}</Text>
-            <Text fontSize="md"><strong>Phone:</strong> {tenant.phone || 'N/A'}</Text>
-            <Text fontSize="md"><strong>Address:</strong> {tenant.address || 'N/A'}</Text>
-            <Text fontSize="md"><strong>Note:</strong> {tenant.note || 'No additional notes'}</Text>
+            <Heading size="lg">{tenant?.first_name} {tenant?.last_name}</Heading>
+            <Text fontSize="md" color="gray.600">{tenant?.nick_name || 'No nickname'}</Text>
+            <Text fontSize="md"><strong>Contact:</strong> {tenant?.contact || 'N/A'}</Text>
+            <Text fontSize="md"><strong>Phone:</strong> {tenant?.phone || 'N/A'}</Text>
+            <Text fontSize="md"><strong>Address:</strong> {tenant?.address || 'N/A'}</Text>
           </Box>
         </Stack>
       </Box>
 
-      {/* Create Contract Button */}
-      <Button colorScheme="teal" onClick={onOpen} mb={6}>
+      {/* Contracts Table */}
+      <Button colorScheme="teal" onClick={() => setIsContractModalOpen(true)} mb={6}>
         Create New Contract
       </Button>
-
-      {/* Contracts Section */}
-      <Heading size="md" mb={4}>
-        Contracts
-      </Heading>
-      <Table variant="striped">
-        <Thead>
-          <Tr>
-            <Th>Contract Number</Th>
-            <Th>Lock</Th>
-            <Th>Start Date</Th>
-            <Th>End Date</Th>
-            <Th>Status</Th>
-            <Th>Documents</Th>
-          </Tr>
-        </Thead>
-        <Tbody>
-          {tenant.contracts?.map((contract) => (
-            <Tr key={contract.id}>
-              <Td>{contract.contractNumber}</Td>
-              <Td>{locks.find((lock) => lock.id === contract.lockId)?.name || 'Unknown'}</Td>
-              <Td>{contract.startDate}</Td>
-              <Td>{contract.endDate}</Td>
-              <Td>
-                {new Date(contract.endDate) > new Date() ? (
-                  <Badge colorScheme="green">Active</Badge>
-                ) : (
-                  <Badge colorScheme="red">Expired</Badge>
-                )}
-              </Td>
-              <Td>
-                {contract.documents?.map((doc) => (
-                  <Button
-                    as="a"
-                    href={doc.path}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    size="sm"
-                    colorScheme="blue"
-                    key={doc.filename}
-                  >
-                    {doc.filename}
-                  </Button>
-                ))}
-              </Td>
-            </Tr>
-          ))}
-        </Tbody>
-      </Table>
+      <CreateContractModal
+        isOpen={isContractModalOpen}
+        onClose={() => setIsContractModalOpen(false)}
+        contractDetails={contractDetails}
+        setContractDetails={setContractDetails}
+        locks={locks}
+        handleCreateContract={() => fetchTenantDetails()}
+      />
+      <Box borderWidth="1px" borderRadius="lg" p={4} boxShadow="lg" bg="white" mb={6}>
+        <Heading size="md" mb={4}>
+          Contracts
+        </Heading>
+        {contracts.length > 0 ? (
+          <Box overflowX="auto">
+            <Table variant="striped" size="sm">
+              <Thead>
+                <Tr>
+                  <Th>Contract Number</Th>
+                  <Th>Lock</Th>
+                  <Th>Rent Rate</Th>
+                  <Th>Water Rate</Th>
+                  <Th>Electric Rate</Th>
+                  <Th>Advance</Th>
+                  <Th>Deposit</Th>
+                  <Th>Days Left</Th>
+                  <Th>Documents</Th>
+                  <Th>Status</Th>
+                  <Th>Actions</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {contracts.map((contract) => {
+                  const daysLeft = getDaysLeft(contract.end_date);
+                  return (
+                    <Tr key={contract.id}>
+                      <Td>{contract.contract_number}</Td>
+                      <Td>{locks.find((lock) => lock.id === contract.lock_id)?.name || 'Unknown'}</Td>
+                      <Td>{parseFloat(contract.rent_rate).toFixed(2)}</Td>
+                      <Td>{parseFloat(contract.water_rate).toFixed(2)}</Td>
+                      <Td>{parseFloat(contract.electric_rate).toFixed(2)}</Td>
+                      <Td>{parseFloat(contract.advance).toFixed(2)}</Td>
+                      <Td>{parseFloat(contract.deposit).toFixed(2)}</Td>
+                      <Td>
+                        {daysLeft > 0 ? (
+                          <Badge
+                            colorScheme={
+                              daysLeft <= 60
+                                ? 'red'
+                                : daysLeft <= 180
+                                ? 'orange'
+                                : 'green'
+                            }
+                          >
+                            {daysLeft} days
+                          </Badge>
+                        ) : (
+                          <Text color="red">Expired</Text>
+                        )}
+                      </Td>
+                      <Td>
+                        {contract.documents?.length > 0 ? (
+                          <Wrap spacing={2}>
+                            {contract.documents.map((doc, index) => (
+                              <WrapItem key={index}>
+                                <a
+                                  href={`http://localhost:4000/${doc.path}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ textDecoration: 'underline', color: 'blue' }}
+                                >
+                                  {doc.filename}
+                                </a>
+                              </WrapItem>
+                            ))}
+                          </Wrap>
+                        ) : (
+                          <Text>No documents</Text>
+                        )}
+                      </Td>
+                      <Td>
+                        {new Date(contract.end_date) > new Date() ? (
+                          <Badge colorScheme="green">Active</Badge>
+                        ) : (
+                          <Badge colorScheme="red">Expired</Badge>
+                        )}
+                      </Td>
+                      <Td>
+                        <Button
+                          colorScheme="blue"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedContract(contract);
+                            setIsAddDocumentsModalOpen(true);
+                          }}
+                        >
+                          Add Documents
+                        </Button>
+                      </Td>
+                    </Tr>
+                  );
+                })}
+              </Tbody>
+            </Table>
+          </Box>
+        ) : (
+          <Text textAlign="center" color="gray.500">
+            No contracts available.
+          </Text>
+        )}
+      </Box>
 
       {/* Create Contract Modal */}
-      <Modal isOpen={isOpen} onClose={onClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Create New Contract</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <Stack spacing={4}>
-              <FormControl>
-                <FormLabel>Select Lock</FormLabel>
-                <Select
-                  value={contractDetails.lockId}
-                  onChange={(e) =>
-                    setContractDetails({ ...contractDetails, lockId: e.target.value })
-                  }
-                >
-                  <option value="" disabled>
-                    Select a lock
-                  </option>
-                  {locks.map((lock) => (
-                    <option key={lock.id} value={lock.id}>
-                      {lock.name} (Zone: {lock.zone})
-                    </option>
-                  ))}
-                </Select>
-              </FormControl>
-              <FormControl>
-                <FormLabel>Start Date</FormLabel>
-                <Input
-                  type="date"
-                  value={contractDetails.startDate}
-                  onChange={(e) =>
-                    setContractDetails({ ...contractDetails, startDate: e.target.value })
-                  }
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel>End Date</FormLabel>
-                <Input
-                  type="date"
-                  value={contractDetails.endDate}
-                  onChange={(e) =>
-                    setContractDetails({ ...contractDetails, endDate: e.target.value })
-                  }
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel>Upload Contract Documents</FormLabel>
-                <Input type="file" multiple onChange={handleFileChange} />
-              </FormControl>
-            </Stack>
-          </ModalBody>
-          <ModalFooter>
-            <Button colorScheme="teal" onClick={handleCreateContract}>
-              Create Contract
-            </Button>
-            <Button onClick={onClose} ml={3}>
-              Cancel
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+   
+
+      {/* Add Documents Modal */}
+      <AddDocumentsModal
+        isOpen={isAddDocumentsModalOpen}
+        onClose={() => setIsAddDocumentsModalOpen(false)}
+        handleAddDocuments={handleAddDocuments}
+      />
     </Box>
   );
 };

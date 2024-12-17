@@ -33,7 +33,10 @@ CREATE TABLE contracts (
     status VARCHAR(255),
     rent_rate decimal,
     water_rate decimal,
-    electric_rate decimal
+    electric_rate decimal,
+    advance decimal,
+    deposit decimal,
+    note TEXT
 );
 
 CREATE TABLE documents (
@@ -65,4 +68,15 @@ CREATE TABLE zones (
     pic VARCHAR(255),
     name VARCHAR(255)  NOT NULL , 
     status VARCHAR(255)
+);
+
+
+CREATE TABLE lock_has_contracts (
+    id SERIAL PRIMARY KEY,
+    contract_id INT , 
+    lock_id INT ,
+    status VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP 
 );

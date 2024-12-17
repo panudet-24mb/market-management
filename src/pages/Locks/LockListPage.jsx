@@ -27,7 +27,10 @@ import {
   FormLabel,
   Switch,
   Stack,
+  IconButton,
 } from '@chakra-ui/react';
+import { ViewIcon } from '@chakra-ui/icons'; // Import eye icon
+import { useNavigate } from 'react-router-dom';
 import lockService from '../../services/lockService';
 import zoneService from '../../services/zoneService';
 
@@ -41,6 +44,10 @@ const LockListPage = () => {
   const [selectedZone, setSelectedZone] = useState('');
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const toast = useToast();
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     name: '',
     lock_number: '',
@@ -48,8 +55,6 @@ const LockListPage = () => {
     size: '',
     active: true,
   });
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const toast = useToast();
 
   useEffect(() => {
     const fetchLocksAndZones = async () => {
@@ -91,14 +96,12 @@ const LockListPage = () => {
   const applyFilters = (searchQuery, zoneId) => {
     let filtered = [...locks];
 
-    // Apply search filter
     if (searchQuery) {
       filtered = filtered.filter((lock) =>
         lock.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
-    // Apply zone filter
     if (zoneId) {
       filtered = filtered.filter((lock) => lock.zone_id === parseInt(zoneId));
     }
@@ -113,28 +116,8 @@ const LockListPage = () => {
     currentPage * ITEMS_PER_PAGE
   );
 
-  const handlePrevPage = () => {
-    if (currentPage > 1) setCurrentPage((prev) => prev - 1);
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) setCurrentPage((prev) => prev + 1);
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: value,
-    }));
-  };
-
-  const handleSwitchChange = (e) => {
-    setFormData((prevData) => ({
-      ...prevData,
-      active: e.target.checked,
-    }));
-  };
+  const handlePrevPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
+  const handleNextPage = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages));
 
   const handleCreateLock = async () => {
     try {
@@ -150,14 +133,8 @@ const LockListPage = () => {
 
       setLocks((prevLocks) => [...prevLocks, newLock]);
       setFilteredLocks((prevLocks) => [...prevLocks, newLock]);
-      setFormData({
-        name: '',
-        lock_number: '',
-        zone_id: '',
-        size: '',
-        active: true,
-      });
       onClose();
+      setFormData({ name: '', lock_number: '', zone_id: '', size: '', active: true });
     } catch (error) {
       toast({
         title: 'Error creating lock',
@@ -169,13 +146,9 @@ const LockListPage = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <Box p={6} textAlign="center">
-        <Spinner size="xl" />
-      </Box>
-    );
-  }
+  const goToDetails = (lockId) => {
+    navigate(`/locks/${lockId}`);
+  };
 
   return (
     <Box p={6}>
@@ -184,16 +157,8 @@ const LockListPage = () => {
       </Heading>
 
       <Flex mb={4} gap={4}>
-        <Input
-          placeholder="Search by lock name"
-          value={search}
-          onChange={handleSearch}
-        />
-        <Select
-          placeholder="Filter by zone"
-          value={selectedZone}
-          onChange={handleZoneFilter}
-        >
+        <Input placeholder="Search by lock name" value={search} onChange={handleSearch} />
+        <Select placeholder="Filter by zone" value={selectedZone} onChange={handleZoneFilter}>
           {zones.map((zone) => (
             <option key={zone.id} value={zone.id}>
               {zone.name}
@@ -205,46 +170,60 @@ const LockListPage = () => {
         </Button>
       </Flex>
 
-      <Table variant="striped">
-        <Thead>
-          <Tr>
-            <Th>ID</Th>
-            <Th>Name</Th>
-            <Th>Lock Number</Th>
-            <Th>Zone</Th>
-            <Th>Size</Th>
-            <Th>Status</Th>
-            <Th>Active</Th>
-          </Tr>
-        </Thead>
-        <Tbody>
-          {displayedLocks.map((lock) => (
-            <Tr key={lock.id}>
-              <Td>{lock.id}</Td>
-              <Td>{lock.name}</Td>
-              <Td>{lock.lock_number}</Td>
-              <Td>
-                {zones.find((zone) => zone.id === lock.zone_id)?.name || 'Unknown'}
-              </Td>
-              <Td>{lock.size}</Td>
-              <Td>{lock.status}</Td>
-              <Td>{lock.active ? 'Yes' : 'No'}</Td>
-            </Tr>
-          ))}
-        </Tbody>
-      </Table>
+      {loading ? (
+        <Box textAlign="center">
+          <Spinner size="xl" />
+        </Box>
+      ) : (
+        <>
+          <Table variant="striped" size="md">
+            <Thead>
+              <Tr>
+                <Th>ID</Th>
+                <Th>Name</Th>
+                <Th>Lock Number</Th>
+                <Th>Zone</Th>
+                <Th>Size</Th>
+                <Th>Active</Th>
+                <Th>Actions</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {displayedLocks.map((lock) => (
+                <Tr key={lock.id}>
+                  <Td>{lock.id}</Td>
+                  <Td>{lock.name}</Td>
+                  <Td>{lock.lock_number}</Td>
+                  <Td>{zones.find((zone) => zone.id === lock.zone_id)?.name || 'Unknown'}</Td>
+                  <Td>{lock.size}</Td>
+                  <Td>{lock.active ? 'Yes' : 'No'}</Td>
+                  <Td>
+                    <IconButton
+                      icon={<ViewIcon />}
+                      colorScheme="blue"
+                      onClick={() => goToDetails(lock.id)}
+                      aria-label="View Lock Details"
+                      size="sm"
+                    />
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
 
-      <Flex justifyContent="space-between" mt={4} alignItems="center">
-        <Button onClick={handlePrevPage} disabled={currentPage === 1}>
-          Previous
-        </Button>
-        <Text>
-          Page {currentPage} of {totalPages}
-        </Text>
-        <Button onClick={handleNextPage} disabled={currentPage === totalPages}>
-          Next
-        </Button>
-      </Flex>
+          <Flex justifyContent="space-between" mt={4}>
+            <Button onClick={handlePrevPage} disabled={currentPage === 1}>
+              Previous
+            </Button>
+            <Text>
+              Page {currentPage} of {totalPages}
+            </Text>
+            <Button onClick={handleNextPage} disabled={currentPage === totalPages}>
+              Next
+            </Button>
+          </Flex>
+        </>
+      )}
 
       {/* Create Lock Modal */}
       <Modal isOpen={isOpen} onClose={onClose}>
@@ -259,8 +238,7 @@ const LockListPage = () => {
                 <Input
                   name="name"
                   value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="Enter lock name"
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
               </FormControl>
               <FormControl isRequired>
@@ -268,8 +246,7 @@ const LockListPage = () => {
                 <Input
                   name="lock_number"
                   value={formData.lock_number}
-                  onChange={handleInputChange}
-                  placeholder="Enter lock number"
+                  onChange={(e) => setFormData({ ...formData, lock_number: e.target.value })}
                 />
               </FormControl>
               <FormControl isRequired>
@@ -277,8 +254,7 @@ const LockListPage = () => {
                 <Select
                   name="zone_id"
                   value={formData.zone_id}
-                  onChange={handleInputChange}
-                  placeholder="Select zone"
+                  onChange={(e) => setFormData({ ...formData, zone_id: e.target.value })}
                 >
                   {zones.map((zone) => (
                     <option key={zone.id} value={zone.id}>
@@ -287,30 +263,11 @@ const LockListPage = () => {
                   ))}
                 </Select>
               </FormControl>
-              <FormControl>
-                <FormLabel>Size</FormLabel>
-                <Input
-                  name="size"
-                  value={formData.size}
-                  onChange={handleInputChange}
-                  placeholder="Enter lock size"
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel>Active</FormLabel>
-                <Switch
-                  isChecked={formData.active}
-                  onChange={handleSwitchChange}
-                  colorScheme="teal"
-                >
-                  Active
-                </Switch>
-              </FormControl>
             </Stack>
           </ModalBody>
           <ModalFooter>
             <Button colorScheme="teal" onClick={handleCreateLock}>
-              Create Lock
+              Create
             </Button>
             <Button onClick={onClose} ml={3}>
               Cancel
