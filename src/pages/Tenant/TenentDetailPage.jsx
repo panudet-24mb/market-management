@@ -47,7 +47,51 @@ const TenantDetailPage = () => {
   const toast = useToast();
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
   const [isAddDocumentsModalOpen, setIsAddDocumentsModalOpen] = useState(false);
-
+  const handleCreateContract = async () => {
+    const formData = new FormData();
+  
+    // Append all fields from contractDetails
+    formData.append('tenant_id', id); // Append tenant_id directly
+    formData.append('lock_id', contractDetails.lock_id);
+    formData.append('start_date', contractDetails.start_date);
+    formData.append('end_date', contractDetails.end_date);
+    formData.append('rent_rate', contractDetails.rent_rate);
+    formData.append('water_rate', contractDetails.water_rate);
+    formData.append('electric_rate', contractDetails.electric_rate);
+    formData.append('advance', contractDetails.advance);
+    formData.append('deposit', contractDetails.deposit);
+    formData.append('note', contractDetails.note);
+    formData.append('contract_name', contractDetails.contract_name);
+  
+    // Append uploaded files
+    if (contractDetails.documents) {
+      Array.from(contractDetails.documents).forEach((file, index) => {
+        formData.append(`file_${index}`, file);
+      });
+    }
+  
+    try {
+      await contractService.createContract(formData); // Call the API function
+      toast({
+        title: 'Contract created successfully!',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      setIsContractModalOpen(false); // Close the modal
+      fetchTenantDetails(); // Refresh data
+    } catch (error) {
+      console.error('Error creating contract:', error);
+      toast({
+        title: 'Error creating contract',
+        description: error.message,
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+  
   const fetchTenantDetails = async () => {
     setLoading(true);
     try {
@@ -153,7 +197,7 @@ const TenantDetailPage = () => {
         contractDetails={contractDetails}
         setContractDetails={setContractDetails}
         locks={locks}
-        handleCreateContract={() => fetchTenantDetails()}
+        handleCreateContract={handleCreateContract}
       />
       <Box borderWidth="1px" borderRadius="lg" p={4} boxShadow="lg" bg="white" mb={6}>
         <Heading size="md" mb={4}>

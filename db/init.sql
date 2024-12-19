@@ -105,6 +105,7 @@ CREATE TABLE locks (
 CREATE TABLE contracts (
     id SERIAL PRIMARY KEY,
     contract_number VARCHAR(255) UNIQUE NOT NULL,
+    contract_name VARCHAR(255),
     tenant_id INT ,
     lock_id INT,
     start_date DATE NOT NULL,

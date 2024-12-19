@@ -40,6 +40,8 @@ class Zone(Base):
     name = Column(String, nullable=False)
     status = Column(String)
 
+    locks = relationship("Lock", back_populates="zone")
+
 class Tenant(Base):
     __tablename__ = "tenants"
 
@@ -74,7 +76,6 @@ class Lock(Base):
     id = Column(Integer, primary_key=True, index=True)
     lock_name = Column(String)
     lock_number = Column(String)
-    zone_id = Column(Integer)
     size = Column(String)
     status = Column(String)
     active = Column(Boolean)
@@ -82,13 +83,15 @@ class Lock(Base):
     # Relationships
     contracts = relationship("Contract", back_populates="lock")
     lock_contracts = relationship("LockHasContract", back_populates="lock")
+    zone_id = Column(Integer, ForeignKey("zones.id"))
+    zone = relationship("Zone", back_populates="locks")
 
 # Contract Model
 class Contract(Base):
     __tablename__ = "contracts"
-
     id = Column(Integer, primary_key=True, index=True)
     contract_number = Column(String, unique=True, nullable=False)
+    contract_name = Column(String)
     tenant_id = Column(Integer, ForeignKey("tenants.id"))
     lock_id = Column(Integer, ForeignKey("locks.id"))
     start_date = Column(Date, nullable=False)

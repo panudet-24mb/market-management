@@ -114,6 +114,7 @@ def create_contract_api(
     advance: float = Form(...),
     deposit: float = Form(...),
     note: str = Form(...),
+    contract_name: str = Form(...),
     db: Session = Depends(get_db),
 
 ):
@@ -139,7 +140,8 @@ def create_contract_api(
         electric_rate=electric_rate,
         advance=advance,
         deposit=deposit,
-        note=note
+        note=note,
+        contract_name= contract_name
     )
     db.add(new_contract)
     db.commit()
@@ -314,12 +316,14 @@ def get_locks_with_contracts(db: Session = Depends(get_db)):
         db.query(
             LockHasContract.lock_id,
             Contract.id.label("contract_id"),
+            Contract.contract_name,
             Contract.contract_number,
             Contract.start_date,
             Contract.end_date,
             Tenant.first_name.label("tenant_first_name"),
             Tenant.last_name.label("tenant_last_name"),
             Tenant.profile_image,
+
         )
         .join(Contract, LockHasContract.contract_id == Contract.id, isouter=True)
         .join(Tenant, Contract.tenant_id == Tenant.id, isouter=True)
@@ -343,6 +347,7 @@ def get_locks_with_contracts(db: Session = Depends(get_db)):
             Lock.active,
             subquery.c.contract_id,
             subquery.c.contract_number,
+            subquery.c.contract_name,
             subquery.c.start_date,
             subquery.c.end_date,
             subquery.c.tenant_first_name,
@@ -377,6 +382,8 @@ def get_locks_with_contracts(db: Session = Depends(get_db)):
             "contract_number": lock.contract_number,
             "profile_image": lock.profile_image,
             "contract_id": lock.contract_id,
+            "contract_name": lock.contract_name
+         
         })
 
     return result

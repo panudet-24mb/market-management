@@ -17,7 +17,7 @@ import BindContractModal from '../../components/BindContractModal';
 import lockService from '../../services/lockService';
 import zoneService from '../../services/zoneService';
 
-const ITEMS_PER_PAGE = 5;
+const ITEMS_PER_PAGE = 100;
 
 
 

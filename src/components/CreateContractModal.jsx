@@ -14,6 +14,7 @@ import {
   Textarea,
   Stack,
   Button,
+  InputGroup, InputLeftElement,
 } from '@chakra-ui/react';
 
 const CreateContractModal = ({
@@ -53,10 +54,20 @@ const CreateContractModal = ({
                 </option>
                 {locks.map((lock) => (
                   <option key={lock.id} value={lock.id}>
-                    {lock.name} (Zone: {lock.zone})
+                    {lock.name} (Zone: {lock.zone_name} - {lock.lock_number} - {lock.lock_name})
                   </option>
                 ))}
               </Select>
+            </FormControl>
+
+            <FormControl>
+              <FormLabel>Contract Name</FormLabel>
+              <Input
+                type="text"
+                name="contract_name"
+                value={contractDetails.contract_name}
+                onChange={handleInputChange}
+              />
             </FormControl>
             <FormControl>
               <FormLabel>Start Date</FormLabel>
@@ -77,14 +88,20 @@ const CreateContractModal = ({
               />
             </FormControl>
             <FormControl>
-              <FormLabel>Rent Rate</FormLabel>
-              <Input
-                type="number"
-                name="rent_rate"
-                value={contractDetails.rent_rate}
-                onChange={handleInputChange}
-              />
-            </FormControl>
+  <FormLabel>Rent Rate</FormLabel>
+  <InputGroup>
+    <InputLeftElement pointerEvents="none" color="gray.400" fontSize="1.2em">
+    ฿
+    </InputLeftElement>
+    <Input
+      type="number"
+      name="rent_rate"
+      value={contractDetails.rent_rate}
+      onChange={handleInputChange}
+      placeholder="Enter amount"
+    />
+  </InputGroup>
+</FormControl>
             <FormControl>
               <FormLabel>Water Rate</FormLabel>
               <Input

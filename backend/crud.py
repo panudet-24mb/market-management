@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from models import Tenant, Lock, Contract, Document, Bill , Zone
-
+from fastapi.encoders import jsonable_encoder
 # CRUD for Tenant
 from datetime import datetime
 
@@ -37,7 +37,25 @@ def create_lock(db: Session, lock_data: dict):
     return lock
 
 def get_locks(db: Session):
-    return db.query(Lock).all()
+    query = db.query(Lock, Zone).join(Zone, Lock.zone_id == Zone.id).all()
+
+    # Format the result into the desired response structure
+    result = [
+        {
+            "id": lock.id,
+            "size": lock.size,
+            "active": lock.active,
+            "lock_name": lock.lock_name,
+            "lock_number": lock.lock_number,
+            "status": lock.status,
+            "zone_id": lock.zone_id,
+            "zone_name": zone.name,
+            "zone_pic": zone.pic  # Assuming `pic` is the field for the zone picture
+        }
+        for lock, zone in query
+    ]
+
+    return result
 
 # CRUD for Contract
 def create_contract(db: Session, contract_data: dict):

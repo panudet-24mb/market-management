@@ -149,15 +149,16 @@ const MeterManagementPage = () => {
                   <Tr key={meter.id}>
                     <Td>{meter.id}</Td>
                     <Td>
-                      <Tag
-                        colorScheme={meter.meter_type === 'water' ? 'blue' : 'orange'}
-                        size="lg"
-                      >
-                        <TagLeftIcon as={meter.meter_type === 'water' ? InfoIcon : WarningIcon} />
-                        <TagLabel>
-                          {meter.meter_type === 'water' ? 'Water Meter' : 'Electric Meter'}
-                        </TagLabel>
-                      </Tag>
+                    <Tag
+  colorScheme={meter.meter_type === 'Water Meter' ? 'blue' : 'orange'}
+  size="lg"
+>
+  <TagLeftIcon as={meter.meter_type === 'Water Meter' ? InfoIcon : WarningIcon} />
+  <TagLabel>
+    {meter.meter_type === 'Water Meter' ? 'Water Meter' : 'Electric Meter'}
+  </TagLabel>
+</Tag>
+
                     </Td>
                     <Td>{meter.meter_number}</Td>
                     <Td>{meter.meter_serial}</Td>
@@ -202,15 +203,16 @@ const MeterManagementPage = () => {
                   <Tr key={meter.id}>
                     <Td>{meter.id}</Td>
                     <Td>
-                      <Tag
-                        colorScheme={meter.meter_type === 'water' ? 'blue' : 'orange'}
-                        size="lg"
-                      >
-                        <TagLeftIcon as={meter.meter_type === 'water' ? InfoIcon : WarningIcon} />
-                        <TagLabel>
-                          {meter.meter_type === 'water' ? 'Water Meter' : 'Electric Meter'}
-                        </TagLabel>
-                      </Tag>
+                    <Tag
+  colorScheme={meter.meter_type === 'Water Meter' ? 'blue' : 'orange'}
+  size="lg"
+>
+  <TagLeftIcon as={meter.meter_type === 'Water Meter' ? InfoIcon : WarningIcon} />
+  <TagLabel>
+    {meter.meter_type === 'Water Meter' ? 'Water Meter' : 'Electric Meter'}
+  </TagLabel>
+</Tag>
+
                     </Td>
                     <Td>{meter.meter_number}</Td>
                     <Td>{meterUsage[meter.id]?.meter_start || 0}</Td>

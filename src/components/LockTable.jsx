@@ -86,10 +86,11 @@ const LockTable = ({ displayedLocks, zones, goToDetails, onClickIconEye, fetchLo
             <Th>Name</Th>
             <Th>Lock Number</Th>
             <Th>Zone</Th>
-            <Th>Size</Th>
+            {/* <Th>Size</Th> */}
             <Th>Status</Th>
             <Th>PIC</Th>
             <Th>Tenant</Th>
+            <Th>ContractName</Th>
             <Th>Contract Number</Th>
             <Th>Start</Th>
             <Th>End</Th>
@@ -104,7 +105,7 @@ const LockTable = ({ displayedLocks, zones, goToDetails, onClickIconEye, fetchLo
               <Td>{lock.lock_name}</Td>
               <Td>{lock.lock_number}</Td>
               <Td>{zones.find((zone) => zone.id === lock.zone_id)?.name || 'Unknown'}</Td>
-              <Td>{lock.size}</Td>
+              {/* <Td>{lock.size}</Td> */}
               <Td>
                 <Tag colorScheme={lock.active ? 'green' : 'red'}>
                   <TagLeftIcon as={lock.active ? CheckCircleIcon : WarningIcon} />
@@ -119,6 +120,13 @@ const LockTable = ({ displayedLocks, zones, goToDetails, onClickIconEye, fetchLo
                 />
               </Td>
               <Td>{lock.tenant_name || 'No Tenant'}</Td>
+              <Td>
+                {lock.contract_name ? (
+                  <Tag colorScheme="blue">{lock.contract_name}</Tag>
+                ) : (
+                  'N/A'
+                )}
+              </Td>
               <Td>
                 {lock.contract_number ? (
                   <Tag colorScheme="blue">{lock.contract_number}</Tag>
