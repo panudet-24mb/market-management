@@ -1,59 +1,8 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Date, Text, DECIMAL
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Date, Text, DECIMAL,TIMESTAMP ,func ,DateTime
 from sqlalchemy.orm import relationship
 from database import Base
-
-class Tenant(Base):
-    __tablename__ = "tenants"
-
-    id = Column(Integer, primary_key=True, index=True)
-    code = Column(String, unique=True, nullable=False)
-    prefix = Column(String)
-    first_name = Column(String)
-    last_name = Column(String)
-    nick_name = Column(String)
-    contact = Column(String)
-    phone = Column(String)
-    address = Column(String)
-    profile_image = Column(String)
-    line_id = Column(String)
-    note = Column(Text)
-
-    contracts = relationship("Contract", back_populates="tenant")
-    bills = relationship("Bill", back_populates="tenant")
-
-class Lock(Base):
-    __tablename__ = "locks"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String)
-    lock_number = Column(String)
-    zone_id = Column(Integer, ForeignKey("zones.id", ondelete="SET NULL"), nullable=True)
-    size = Column(String)
-    status = Column(String)
-    active = Column(Boolean)
-    contracts = relationship("Contract", back_populates="lock")
-
-class Contract(Base):
-    __tablename__ = "contracts"
-
-    id = Column(Integer, primary_key=True, index=True)
-    contract_number = Column(String, unique=True, nullable=False)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"))
-    lock_id = Column(Integer, ForeignKey("locks.id"))
-    start_date = Column(Date, nullable=False)
-    end_date = Column(Date, nullable=False)
-    status = Column(String)
-    rent_rate = Column(DECIMAL)
-    water_rate = Column(DECIMAL)
-    electric_rate = Column(DECIMAL)
-    advance = Column(DECIMAL)
-    deposit = Column(DECIMAL)
-    note = Column(Text)
-    
-
-    tenant = relationship("Tenant", back_populates="contracts")
-    lock = relationship("Lock", back_populates="contracts")
-    documents = relationship("Document", back_populates="contract")
+from pydantic import BaseModel
+from datetime import datetime
 
 class Document(Base):
     __tablename__ = "documents"
@@ -91,4 +40,113 @@ class Zone(Base):
     name = Column(String, nullable=False)
     status = Column(String)
 
-    
+class Tenant(Base):
+    __tablename__ = "tenants"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String)
+    prefix = Column(String)
+    first_name = Column(String)
+    last_name = Column(String)
+    nick_name = Column(String)
+    contact = Column(String)
+    phone = Column(String)
+    address = Column(String)
+    profile_image = Column(String)
+    line_id = Column(String)
+    note = Column(Text)
+
+    # Relationships
+    contracts = relationship("Contract", back_populates="tenant")
+    bills = relationship("Bill", back_populates="tenant")  # Add this line
+
+
+class BindContractRequest(BaseModel):
+    lock_id: int
+    contract_id: int
+    status: str = 'active'
+
+
+# Lock Model
+class Lock(Base):
+    __tablename__ = "locks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    lock_name = Column(String)
+    lock_number = Column(String)
+    zone_id = Column(String)
+    size = Column(String)
+    status = Column(String)
+    active = Column(Boolean)
+
+    # Relationships
+    contracts = relationship("Contract", back_populates="lock")
+    lock_contracts = relationship("LockHasContract", back_populates="lock")
+
+# Contract Model
+class Contract(Base):
+    __tablename__ = "contracts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    contract_number = Column(String, unique=True, nullable=False)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"))
+    lock_id = Column(Integer, ForeignKey("locks.id"))
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+    status = Column(String)
+    rent_rate = Column(Integer)
+    water_rate = Column(Integer)
+    electric_rate = Column(Integer)
+    advance = Column(Integer)
+    deposit = Column(Integer)
+    note = Column(Text)
+
+    # Relationships
+    tenant = relationship("Tenant", back_populates="contracts")
+    lock = relationship("Lock", back_populates="contracts")
+    lock_contracts = relationship("LockHasContract", back_populates="contract")
+    documents = relationship("Document", back_populates="contract")  # Add this line
+
+# LockHasContract Association Table
+class LockHasContract(Base):
+    __tablename__ = "lock_has_contracts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    contract_id = Column(Integer, ForeignKey("contracts.id"), nullable=False)
+    lock_id = Column(Integer, ForeignKey("locks.id"), nullable=False)
+    status = Column(String)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    deleted_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    lock = relationship("Lock", back_populates="lock_contracts")
+    contract = relationship("Contract", back_populates="lock_contracts")
+
+
+class Meter(Base):
+    __tablename__ = "meters"
+
+    id = Column(Integer, primary_key=True, index=True)
+    meter_type = Column(String, nullable=False)
+    meter_number = Column(String, nullable=False)
+    meter_serial = Column(String, nullable=False, unique=True)
+    note = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)
+
+
+class MeterUsage(Base):
+    __tablename__ = "meter_usages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    meter_id = Column(Integer, ForeignKey("meters.id"), nullable=False)
+    meter_start = Column(Integer, nullable=False)
+    meter_end = Column(Integer, nullable=False)
+    meter_usage = Column(Integer, nullable=False)
+    note = Column(Text, nullable=True)
+    img_path = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)

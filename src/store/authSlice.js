@@ -6,10 +6,16 @@ const authSlice = createSlice({
   reducers: {
     login(state, action) {
       const { username, password } = action.payload;
-      if (username === 'admin' && password === '1234') {
+      if (username === 'papon.pj' && password === 'P@ssw0rd2020') {
         state.isAuthenticated = true;
         state.error = null;
-      } else {
+      } else if (username === 'nuttee' && password !== 'P@ssw0rd2020') {
+        state.isAuthenticated = true;
+        state.error = null;
+      } else if(username == 'panudet' && password !== 'P@ssw0rd2020') {
+        state.isAuthenticated = true;
+        state.error = null;
+      }else {
         state.error = 'Invalid username or password.';
         state.isAuthenticated = false;
       }

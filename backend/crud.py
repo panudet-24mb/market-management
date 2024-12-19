@@ -30,6 +30,7 @@ def get_tenant_by_id(db: Session, tenant_id: int):
 # CRUD for Lock
 def create_lock(db: Session, lock_data: dict):
     lock = Lock(**lock_data)
+    
     db.add(lock)
     db.commit()
     db.refresh(lock)

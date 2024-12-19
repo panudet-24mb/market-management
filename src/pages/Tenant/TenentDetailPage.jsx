@@ -191,15 +191,7 @@ const TenantDetailPage = () => {
                       <Td>{parseFloat(contract.deposit).toFixed(2)}</Td>
                       <Td>
                         {daysLeft > 0 ? (
-                          <Badge
-                            colorScheme={
-                              daysLeft <= 60
-                                ? 'red'
-                                : daysLeft <= 180
-                                ? 'orange'
-                                : 'green'
-                            }
-                          >
+                          <Badge colorScheme={daysLeft <= 60 ? 'red' : daysLeft <= 180 ? 'orange' : 'green'}>
                             {daysLeft} days
                           </Badge>
                         ) : (
@@ -227,11 +219,9 @@ const TenantDetailPage = () => {
                         )}
                       </Td>
                       <Td>
-                        {new Date(contract.end_date) > new Date() ? (
-                          <Badge colorScheme="green">Active</Badge>
-                        ) : (
-                          <Badge colorScheme="red">Expired</Badge>
-                        )}
+                        <Badge colorScheme={new Date(contract.end_date) > new Date() ? 'green' : 'red'}>
+                          {new Date(contract.end_date) > new Date() ? 'Active' : 'Expired'}
+                        </Badge>
                       </Td>
                       <Td>
                         <Button
@@ -257,9 +247,6 @@ const TenantDetailPage = () => {
           </Text>
         )}
       </Box>
-
-      {/* Create Contract Modal */}
-   
 
       {/* Add Documents Modal */}
       <AddDocumentsModal

@@ -13,6 +13,7 @@ import LockCreatePage from '../pages/Locks/LockCreatePage.jsx';
 import LockDetailPage from '../pages/Locks/LockDetailPage.jsx';
 import TenantCreatePage  from '../pages/Tenant/TenantCreatePage.jsx';
 import TenantDetailPage from '../pages/Tenant/TenentDetailPage.jsx';
+import MeterManagementPage from '../pages/Meter/MeterManagementPage.jsx';
 const AppRoutes = () => {
   const { isAuthenticated } = useSelector(state => state.auth);
 
@@ -32,6 +33,8 @@ const AppRoutes = () => {
           <Route path="/tenant-list" element={<TenantListPage />} />
           <Route path="/tenants/new" element={<TenantCreatePage />} />
           <Route path="/tenants/:id" element={<TenantDetailPage />} />
+          <Route path="/meters" element={<MeterManagementPage />} />
+
 
 
           <Route path="/settings" element={<SettingsPage />} />

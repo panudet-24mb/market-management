@@ -4,37 +4,23 @@ import {
   Heading,
   Input,
   Select,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
   Button,
   Flex,
   Text,
   Spinner,
   useToast,
-  useDisclosure,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalCloseButton,
-  ModalBody,
-  ModalFooter,
-  FormControl,
-  FormLabel,
-  Switch,
-  Stack,
-  IconButton,
+
 } from '@chakra-ui/react';
-import { ViewIcon } from '@chakra-ui/icons'; // Import eye icon
-import { useNavigate } from 'react-router-dom';
+import LockTable from '../../components/LockTable';
+import NewLockModal from '../../components/NewLockModal';
+import BindContractModal from '../../components/BindContractModal';
 import lockService from '../../services/lockService';
 import zoneService from '../../services/zoneService';
 
 const ITEMS_PER_PAGE = 5;
+
+
+
 
 const LockListPage = () => {
   const [locks, setLocks] = useState([]);
@@ -44,40 +30,43 @@ const LockListPage = () => {
   const [selectedZone, setSelectedZone] = useState('');
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
-  const navigate = useNavigate();
 
-  const [formData, setFormData] = useState({
-    name: '',
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBindModalOpen, setIsBindModalOpen] = useState(false);
+  const [selectedLockId, setSelectedLockId] = useState(null);
+  const [newLock, setNewLock] = useState({
+    lock_name: '',
     lock_number: '',
     zone_id: '',
     size: '',
     active: true,
   });
 
+  // Define fetchLocksAndZones here
+  const fetchLocksAndZones = async () => {
+    setLoading(true);
+    try {
+      const locksData = await lockService.getLocksWithContracts();
+      const zonesData = await zoneService.getZones();
+
+      setLocks(locksData);
+      setFilteredLocks(locksData);
+      setZones(zonesData);
+    } catch (error) {
+      toast({
+        title: 'Error loading data',
+        description: error.message || 'An error occurred while fetching locks and zones.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchLocksAndZones = async () => {
-      try {
-        const locksData = await lockService.getLocks();
-        const zonesData = await zoneService.getZones();
-
-        setLocks(locksData);
-        setFilteredLocks(locksData);
-        setZones(zonesData);
-      } catch (error) {
-        toast({
-          title: 'Error loading data',
-          description: error.message || 'An error occurred while fetching locks and zones.',
-          status: 'error',
-          duration: 3000,
-          isClosable: true,
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchLocksAndZones();
   }, [toast]);
 
@@ -93,12 +82,14 @@ const LockListPage = () => {
     applyFilters(search, zoneId);
   };
 
+  
+
   const applyFilters = (searchQuery, zoneId) => {
     let filtered = [...locks];
 
     if (searchQuery) {
       filtered = filtered.filter((lock) =>
-        lock.name.toLowerCase().includes(searchQuery.toLowerCase())
+        lock.lock_name.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -119,35 +110,46 @@ const LockListPage = () => {
   const handlePrevPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
   const handleNextPage = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages));
 
-  const handleCreateLock = async () => {
-    try {
-      const newLock = await lockService.createLock(formData);
+  const openBindContractModal = (lockId) => {
+    console.log("openBindContractModal");
+    
+    setSelectedLockId(lockId);
+    setIsBindModalOpen(true);
+  };
 
+  const closeBindContractModal = () => {
+    setSelectedLockId(null);
+    setIsBindModalOpen(false);
+  };
+
+  const onClickEyeIcon = (id) => {
+    console.log("onClickEyeIcon");
+    console.log(id);
+    
+  }
+
+    
+
+  const handleAddNewLock = async () => {
+    try {
+      await lockService.createLock(newLock);
       toast({
         title: 'Lock created successfully',
-        description: `Lock ${newLock.name} has been created.`,
         status: 'success',
         duration: 3000,
         isClosable: true,
       });
-
-      setLocks((prevLocks) => [...prevLocks, newLock]);
-      setFilteredLocks((prevLocks) => [...prevLocks, newLock]);
-      onClose();
-      setFormData({ name: '', lock_number: '', zone_id: '', size: '', active: true });
+      setIsModalOpen(false);
+      fetchLocksAndZones();
     } catch (error) {
       toast({
         title: 'Error creating lock',
-        description: error.message || 'An error occurred while creating the lock.',
+        description: error.message || 'Failed to add new lock',
         status: 'error',
         duration: 3000,
         isClosable: true,
       });
     }
-  };
-
-  const goToDetails = (lockId) => {
-    navigate(`/locks/${lockId}`);
   };
 
   return (
@@ -165,7 +167,7 @@ const LockListPage = () => {
             </option>
           ))}
         </Select>
-        <Button colorScheme="teal" onClick={onOpen}>
+        <Button colorScheme="teal" onClick={() => setIsModalOpen(true)}>
           +
         </Button>
       </Flex>
@@ -176,40 +178,15 @@ const LockListPage = () => {
         </Box>
       ) : (
         <>
-          <Table variant="striped" size="md">
-            <Thead>
-              <Tr>
-                <Th>ID</Th>
-                <Th>Name</Th>
-                <Th>Lock Number</Th>
-                <Th>Zone</Th>
-                <Th>Size</Th>
-                <Th>Active</Th>
-                <Th>Actions</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {displayedLocks.map((lock) => (
-                <Tr key={lock.id}>
-                  <Td>{lock.id}</Td>
-                  <Td>{lock.name}</Td>
-                  <Td>{lock.lock_number}</Td>
-                  <Td>{zones.find((zone) => zone.id === lock.zone_id)?.name || 'Unknown'}</Td>
-                  <Td>{lock.size}</Td>
-                  <Td>{lock.active ? 'Yes' : 'No'}</Td>
-                  <Td>
-                    <IconButton
-                      icon={<ViewIcon />}
-                      colorScheme="blue"
-                      onClick={() => goToDetails(lock.id)}
-                      aria-label="View Lock Details"
-                      size="sm"
-                    />
-                  </Td>
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
+          <Box overflowX="auto">
+            <LockTable
+              displayedLocks={displayedLocks}
+              zones={zones}
+              goToDetails={openBindContractModal}
+              onClickIconEye={onClickEyeIcon}
+              fetchLocksAndZones={fetchLocksAndZones}
+            />
+          </Box>
 
           <Flex justifyContent="space-between" mt={4}>
             <Button onClick={handlePrevPage} disabled={currentPage === 1}>
@@ -225,56 +202,21 @@ const LockListPage = () => {
         </>
       )}
 
-      {/* Create Lock Modal */}
-      <Modal isOpen={isOpen} onClose={onClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Create New Lock</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <Stack spacing={4}>
-              <FormControl isRequired>
-                <FormLabel>Name</FormLabel>
-                <Input
-                  name="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                />
-              </FormControl>
-              <FormControl isRequired>
-                <FormLabel>Lock Number</FormLabel>
-                <Input
-                  name="lock_number"
-                  value={formData.lock_number}
-                  onChange={(e) => setFormData({ ...formData, lock_number: e.target.value })}
-                />
-              </FormControl>
-              <FormControl isRequired>
-                <FormLabel>Zone</FormLabel>
-                <Select
-                  name="zone_id"
-                  value={formData.zone_id}
-                  onChange={(e) => setFormData({ ...formData, zone_id: e.target.value })}
-                >
-                  {zones.map((zone) => (
-                    <option key={zone.id} value={zone.id}>
-                      {zone.name}
-                    </option>
-                  ))}
-                </Select>
-              </FormControl>
-            </Stack>
-          </ModalBody>
-          <ModalFooter>
-            <Button colorScheme="teal" onClick={handleCreateLock}>
-              Create
-            </Button>
-            <Button onClick={onClose} ml={3}>
-              Cancel
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <NewLockModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        newLock={newLock}
+        setNewLock={setNewLock}
+        zones={zones}
+        handleAddNewLock={handleAddNewLock}
+      />
+
+      <BindContractModal
+        isOpen={isBindModalOpen}
+        onClose={closeBindContractModal}
+        lockId={selectedLockId}
+        refreshLocks={fetchLocksAndZones} // Correctly pass the function
+      />
     </Box>
   );
 };

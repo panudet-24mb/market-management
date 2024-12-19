@@ -1,6 +1,32 @@
 const API_URL = 'http://localhost:4000/api';
 
 const tenantService = {
+  getContractsByTenant: async (tenantId) => {
+    try {
+      const response = await fetch(`${API_URL}/contracts/tenant/${tenantId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to fetch contracts for the tenant.');
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching contracts by tenant:', error.message);
+      throw error;
+    }
+  },
+  getAllTenants: async () => {
+    try {
+      const response = await fetch(`${API_URL}/tenants`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to fetch tenants.');
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching tenants:', error.message);
+      throw error;
+    }
+  },
   getTenants: async () => {
     const response = await fetch(`${API_URL}/tenants`);
     if (!response.ok) {

@@ -33,7 +33,7 @@ const NavigationBar = () => {
       <HStack spacing={3} cursor="pointer" onClick={() => navigate('/')}>
         <Icon as={FaBuilding} boxSize={6} color="white" />
         <Heading as="h1" size="md" color="white">
-          Market Management
+          GoGo Market
         </Heading>
       </HStack>
 
@@ -53,6 +53,9 @@ const NavigationBar = () => {
         </Button>
         <Button variant="ghost" color="white" _hover={{ bg: hoverBg }} onClick={() => navigate('/tenant-list')}>
           Tenants
+        </Button>
+        <Button variant="ghost" color="white" _hover={{ bg: hoverBg }} onClick={() => navigate('/meters')}>
+          Meters
         </Button>
       </HStack>
 
