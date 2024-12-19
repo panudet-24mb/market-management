@@ -1,4 +1,6 @@
-const API_URL = 'http://localhost:4000/api';
+import {PROD_IP} from './ipconfig';
+
+const API_URL = PROD_IP;
 
 const lockService = {
 

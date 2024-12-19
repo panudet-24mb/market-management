@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:4000/api'; // Replace with your actual API base URL
+import {PROD_IP} from './ipconfig';
+
+const API_URL = PROD_IP;
 
 const meterService = {
   /**
