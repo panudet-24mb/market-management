@@ -74,7 +74,7 @@ class Lock(Base):
     id = Column(Integer, primary_key=True, index=True)
     lock_name = Column(String)
     lock_number = Column(String)
-    zone_id = Column(String)
+    zone_id = Column(Integer)
     size = Column(String)
     status = Column(String)
     active = Column(Boolean)

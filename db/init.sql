@@ -96,7 +96,7 @@ CREATE TABLE locks (
     id SERIAL PRIMARY KEY,
     lock_name VARCHAR(255) ,
     lock_number VARCHAR(255) ,
-    zone_id VARCHAR(255) , 
+    zone_id INT , 
     size VARCHAR(255) ,
     status VARCHAR(255) ,
     active BOOLEAN 

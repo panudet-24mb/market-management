@@ -11,7 +11,7 @@ const meterService = {
    */
   getMeterUsageByMonth: async (meterId, month) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/meter_usages/${meterId}/${month}`);
+      const response = await axios.get(`${API_URL}/meter_usages/${meterId}/${month}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching meter usage by month:', error);
@@ -59,7 +59,7 @@ const meterService = {
   },  
   getMeters: async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/meters`);
+      const response = await axios.get(`${API_URL}/meters`);
       return response.data;
     } catch (error) {
       console.error('Error fetching meters:', error);
@@ -74,7 +74,7 @@ const meterService = {
    */
   addMeter: async (meter) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/meters`, meter);
+      const response = await axios.post(`${API_URL}/meters`, meter);
       console.log("API Response:", response.data); // Debugging: Log API response
       return response.data;
     } catch (error) {
@@ -89,7 +89,7 @@ const meterService = {
    */
   addMeterUsage: async (meterUsages) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/meter_usages`, meterUsages);
+      const response = await axios.post(`${API_URL}/meter_usages`, meterUsages);
       return response.data;
     } catch (error) {
       console.error('Error adding meter usage:', error);
@@ -104,7 +104,7 @@ const meterService = {
    */
   bindMeterToContract: async (payload) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/contract_have_meters`, payload);
+      const response = await axios.post(`${API_URL}/contract_have_meters`, payload);
       return response.data;
     } catch (error) {
       console.error('Error binding meter to contract:', error);
@@ -118,7 +118,7 @@ const meterService = {
    */
   getContracts: async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/contracts`);
+      const response = await axios.get(`${API_URL}/contracts`);
       return response.data;
     } catch (error) {
       console.error('Error fetching contracts:', error);
@@ -127,7 +127,7 @@ const meterService = {
   },
   getLatestMeterUsages: async (meterId) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/meter_usages/${meterId}`);
+      const response = await axios.get(`${API_URL}/meter_usages/${meterId}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching latest meter usages:', error);
@@ -142,7 +142,7 @@ const meterService = {
    */
   addMeterUsage: async (usages) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/meter_usages`, usages);
+      const response = await axios.post(`${API_URL}/meter_usages`, usages);
       return response.data;
     } catch (error) {
       console.error('Error adding meter usage:', error);
