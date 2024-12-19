@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Box, Button, Input, FormControl, FormLabel, Heading, Text } from '@chakra-ui/react';
 import { useDispatch, useSelector } from 'react-redux';
 import { login } from '../../store/authSlice';
+import Footer from '../../components/Footer';
 
 const LoginPage = () => {
   const dispatch = useDispatch();
@@ -15,7 +16,8 @@ const LoginPage = () => {
   };
 
   return (
-    <Box maxW="md" mx="auto" mt={10} p={4} bg="white" borderRadius="md" boxShadow="sm">
+<>
+<Box maxW="md" mx="auto" mt={10} p={4} bg="white" borderRadius="md" boxShadow="sm">
       <Heading size="md" mb={4}>Login</Heading>
       <FormControl mb={4}>
         <FormLabel>Username</FormLabel>
@@ -41,7 +43,11 @@ const LoginPage = () => {
         Login
       </Button>
     </Box>
+
+    <Footer />
+</>
   );
 };
+
 
 export default LoginPage;
