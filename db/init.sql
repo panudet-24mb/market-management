@@ -16,7 +16,7 @@ CREATE TABLE tenants (
 
 CREATE TABLE documents (
     id SERIAL PRIMARY KEY,
-    contract_id INT REFERENCES contracts(id),
+    contract_id INT ,
     contract_type VARCHAR(255) NOT NULL,
     filename VARCHAR(255) NOT NULL,
     path VARCHAR(255) NOT NULL
@@ -31,7 +31,7 @@ CREATE TABLE meters (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP
-)
+);
 
 CREATE TABLE contract_have_meters (
     id SERIAL PRIMARY KEY,
@@ -40,7 +40,7 @@ CREATE TABLE contract_have_meters (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP
-)
+);
 
 CREATE TABLE meter_usages (
     id SERIAL PRIMARY KEY,
@@ -53,7 +53,7 @@ CREATE TABLE meter_usages (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP
-)
+);
 
 
 
@@ -71,7 +71,7 @@ CREATE TABLE bills (
     discount decimal,
     total decimal,
     status VARCHAR(255)
-)
+);
 
 CREATE TABLE zones (
     id SERIAL PRIMARY KEY,
