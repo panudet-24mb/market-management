@@ -17,6 +17,7 @@ import TenantCreatePage from '../pages/Tenant/TenantCreatePage.jsx';
 import TenantDetailPage from '../pages/Tenant/TenentDetailPage.jsx';
 import MeterManagementPage from '../pages/Meter/MeterManagementPage.jsx';
 import LiffRegisterPage from '../pages/LiffRegister';
+import Watcher from '../pages/MeterWatcher/Watcher';
 // import NavigationBar from './src/components/NavigationBar.jsx';
 
 import PrivateRoute from "./PrivateRoute.jsx";
@@ -30,6 +31,8 @@ const AppRoutes = () => {
       <Routes>
         <Route exact path='/liff-register' element={<LiffRegisterPage />} />
         <Route exact path='/login' element={<LoginPage />} />
+        <Route exact path='/watcher' element={<Watcher />} />
+
 
         <Route exact path='/' element={<PrivateRoute />}>
           <Route exact path='/' element={<DashboardPage />} />

@@ -22,8 +22,10 @@ import {
   Tag,
   TagLeftIcon,
   TagLabel,
+  Spinner,
+  Center,
 } from '@chakra-ui/react';
-import { InfoIcon, CheckCircleIcon, WarningIcon } from '@chakra-ui/icons';
+import { InfoIcon, WarningIcon } from '@chakra-ui/icons';
 import meterService from '../../services/meterService';
 import MeterModal from '../../components/MeterModal';
 
@@ -31,6 +33,7 @@ const MeterManagementPage = () => {
   const [meters, setMeters] = useState([]);
   const [meterUsage, setMeterUsage] = useState({});
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7)); // Default to current month
+  const [loading, setLoading] = useState(false); // New loading state
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [newMeter, setNewMeter] = useState({ meter_type: '', meter_number: '', meter_serial: '', note: '' });
   const toast = useToast();
@@ -40,6 +43,7 @@ const MeterManagementPage = () => {
   }, [month]);
 
   const fetchMeters = async (selectedMonth) => {
+    setLoading(true); // Start loading
     try {
       const data = await meterService.getMeters();
       const initialUsage = {};
@@ -75,10 +79,13 @@ const MeterManagementPage = () => {
         duration: 3000,
         isClosable: true,
       });
+    } finally {
+      setLoading(false); // End loading
     }
   };
 
   const handleMonthlyInput = async () => {
+    setLoading(true); // Start loading
     try {
       const usageData = Object.values(meterUsage).map((usage) => ({
         ...usage,
@@ -100,6 +107,8 @@ const MeterManagementPage = () => {
         duration: 3000,
         isClosable: true,
       });
+    } finally {
+      setLoading(false); // End loading
     }
   };
 
@@ -122,126 +131,130 @@ const MeterManagementPage = () => {
       <Heading size="lg" mb={6}>
         Meter Management
       </Heading>
-      <Tabs>
-        <TabList>
-          <Tab>Manage Meters</Tab>
-          <Tab>Input Monthly Usage</Tab>
-        </TabList>
-        <TabPanels>
-          {/* Manage Meters Tab */}
-          <TabPanel>
-            <Heading size="md" mb={4}>Existing Meters</Heading>
-            <Button colorScheme="teal" mb={4} onClick={onOpen}>
-              Add New Meter
-            </Button>
-            <Table>
-              <Thead>
-                <Tr>
-                  <Th>ID</Th>
-                  <Th>Type</Th>
-                  <Th>Number</Th>
-                  <Th>Serial</Th>
-                  <Th>Note</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {meters.map((meter) => (
-                  <Tr key={meter.id}>
-                    <Td>{meter.id}</Td>
-                    <Td>
-                    <Tag
-  colorScheme={meter.meter_type === 'Water Meter' ? 'blue' : 'orange'}
-  size="lg"
->
-  <TagLeftIcon as={meter.meter_type === 'Water Meter' ? InfoIcon : WarningIcon} />
-  <TagLabel>
-    {meter.meter_type === 'Water Meter' ? 'Water Meter' : 'Electric Meter'}
-  </TagLabel>
-</Tag>
-
-                    </Td>
-                    <Td>{meter.meter_number}</Td>
-                    <Td>{meter.meter_serial}</Td>
-                    <Td>{meter.note}</Td>
+      {loading ? (
+        <Center>
+          <Spinner size="xl" color="teal.500" />
+        </Center>
+      ) : (
+        <Tabs>
+          <TabList>
+            <Tab>Manage Meters</Tab>
+            <Tab>Input Monthly Usage</Tab>
+          </TabList>
+          <TabPanels>
+            {/* Manage Meters Tab */}
+            <TabPanel>
+              <Heading size="md" mb={4}>Existing Meters</Heading>
+              <Button colorScheme="teal" mb={4} onClick={onOpen}>
+                Add New Meter
+              </Button>
+              <Table>
+                <Thead>
+                  <Tr>
+                    <Th>ID</Th>
+                    <Th>Type</Th>
+                    <Th>Number</Th>
+                    <Th>Serial</Th>
+                    <Th>Note</Th>
                   </Tr>
-                ))}
-              </Tbody>
-            </Table>
-          </TabPanel>
+                </Thead>
+                <Tbody>
+                  {meters.map((meter) => (
+                    <Tr key={meter.id}>
+                      <Td>{meter.id}</Td>
+                      <Td>
+                        <Tag
+                          colorScheme={meter.meter_type === 'Water Meter' ? 'blue' : 'orange'}
+                          size="lg"
+                        >
+                          <TagLeftIcon as={meter.meter_type === 'Water Meter' ? InfoIcon : WarningIcon} />
+                          <TagLabel>
+                            {meter.meter_type === 'Water Meter' ? 'Water Meter' : 'Electric Meter'}
+                          </TagLabel>
+                        </Tag>
+                      </Td>
+                      <Td>{meter.meter_number}</Td>
+                      <Td>{meter.meter_serial}</Td>
+                      <Td>{meter.note}</Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            </TabPanel>
 
-          {/* Input Monthly Usage Tab */}
-          <TabPanel>
-            <Heading size="md" mb={4}>Input Monthly Usage</Heading>
-            <Box mb={4}>
-              <Select value={month} onChange={handleMonthChange}>
-                {Array.from({ length: 15 }, (_, i) => {
-                  const date = new Date();
-                  date.setMonth(date.getMonth() - 12 + i); // 12 months back, 3 months forward
-                  const monthString = date.toISOString().slice(0, 7);
-                  return (
-                    <option key={monthString} value={monthString}>
-                      {monthString}
-                    </option>
-                  );
-                })}
-              </Select>
-            </Box>
-            <Table>
-              <Thead>
-                <Tr>
-                  <Th>ID</Th>
-                  <Th>Type</Th>
-                  <Th>Number</Th>
-                  <Th>Start Reading</Th>
-                  <Th>End Reading</Th>
-                  <Th>Usage</Th>
-                  <Th>Proof</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {meters.map((meter) => (
-                  <Tr key={meter.id}>
-                    <Td>{meter.id}</Td>
-                    <Td>
-                    <Tag
-  colorScheme={meter.meter_type === 'Water Meter' ? 'blue' : 'orange'}
-  size="lg"
->
-  <TagLeftIcon as={meter.meter_type === 'Water Meter' ? InfoIcon : WarningIcon} />
-  <TagLabel>
-    {meter.meter_type === 'Water Meter' ? 'Water Meter' : 'Electric Meter'}
-  </TagLabel>
-</Tag>
-
-                    </Td>
-                    <Td>{meter.meter_number}</Td>
-                    <Td>{meterUsage[meter.id]?.meter_start || 0}</Td>
-                    <Td>
-                      <Input
-                        type="number"
-                        value={meterUsage[meter.id]?.meter_end || ''}
-                        onChange={(e) => updateMeterUsage(meter.id, 'meter_end', e.target.value)}
-                        placeholder="End"
-                      />
-                    </Td>
-                    <Td>{meterUsage[meter.id]?.meter_usage || 0}</Td>
-                    <Td>
-                      {meterUsage[meter.id]?.img_path ? (
-                        <Image src={meterUsage[meter.id].img_path} alt="Proof" boxSize="50px" />
-                      ) : (
-                        <Tag colorScheme="gray">No Proof</Tag>
-                      )}
-                    </Td>
+            {/* Input Monthly Usage Tab */}
+            <TabPanel>
+              <Heading size="md" mb={4}>Input Monthly Usage</Heading>
+              <Box mb={4}>
+                <Select value={month} onChange={handleMonthChange}>
+                  {Array.from({ length: 15 }, (_, i) => {
+                    const date = new Date();
+                    date.setMonth(date.getMonth() - 12 + i); // 12 months back, 3 months forward
+                    const monthString = date.toISOString().slice(0, 7);
+                    return (
+                      <option key={monthString} value={monthString}>
+                        {monthString}
+                      </option>
+                    );
+                  })}
+                </Select>
+              </Box>
+              <Table>
+                <Thead>
+                  <Tr>
+                    <Th>ID</Th>
+                    <Th>Type</Th>
+                    <Th>Number</Th>
+                    <Th>Start Reading</Th>
+                    <Th>End Reading</Th>
+                    <Th>Usage</Th>
+                    <Th>Proof</Th>
                   </Tr>
-                ))}
-              </Tbody>
-            </Table>
-            <Button colorScheme="teal" mt={4} onClick={handleMonthlyInput}>
-              Submit Monthly Usage
-            </Button>
-          </TabPanel>
-        </TabPanels>
-      </Tabs>
+                </Thead>
+                <Tbody>
+                  {meters.map((meter) => (
+                    <Tr key={meter.id}>
+                      <Td>{meter.id}</Td>
+                      <Td>
+                        <Tag
+                          colorScheme={meter.meter_type === 'Water Meter' ? 'blue' : 'orange'}
+                          size="lg"
+                        >
+                          <TagLeftIcon as={meter.meter_type === 'Water Meter' ? InfoIcon : WarningIcon} />
+                          <TagLabel>
+                            {meter.meter_type === 'Water Meter' ? 'Water Meter' : 'Electric Meter'}
+                          </TagLabel>
+                        </Tag>
+                      </Td>
+                      <Td>{meter.meter_number}</Td>
+                      <Td>{meterUsage[meter.id]?.meter_start || 0}</Td>
+                      <Td>
+                        <Input
+                          type="number"
+                          value={meterUsage[meter.id]?.meter_end || ''}
+                          onChange={(e) => updateMeterUsage(meter.id, 'meter_end', e.target.value)}
+                          placeholder="End"
+                        />
+                      </Td>
+                      <Td>{meterUsage[meter.id]?.meter_usage || 0}</Td>
+                      <Td>
+                        {meterUsage[meter.id]?.img_path ? (
+                          <Image src={meterUsage[meter.id].img_path} alt="Proof" boxSize="50px" />
+                        ) : (
+                          <Tag colorScheme="gray">No Proof</Tag>
+                        )}
+                      </Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+              <Button colorScheme="teal" mt={4} onClick={handleMonthlyInput}>
+                Submit Monthly Usage
+              </Button>
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
+      )}
 
       {/* Add Meter Modal */}
       <MeterModal
@@ -250,6 +263,7 @@ const MeterManagementPage = () => {
         newMeter={newMeter}
         setNewMeter={setNewMeter}
         handleAddMeter={async () => {
+          setLoading(true); // Start loading
           try {
             await meterService.addMeter(newMeter);
             toast({
@@ -267,6 +281,8 @@ const MeterManagementPage = () => {
               duration: 3000,
               isClosable: true,
             });
+          } finally {
+            setLoading(false); // End loading
           }
         }}
       />

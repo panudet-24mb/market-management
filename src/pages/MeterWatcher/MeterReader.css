@@ -1,0 +1,35 @@
+.meter-reader-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    text-align: center;
+    background-color: #f4f4f4;
+  }
+  
+  /* คร่าว ๆ สำหรับให้ video ขยายเต็มกว้างจอมือถือ */
+  .video-container {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+  }
+  
+  .video {
+    width: 100%;
+    height: auto;
+  }
+  
+  /* กรอบ ROI */
+  .roi-box {
+    position: absolute;
+    top: 30%;    /* ปรับตามดีไซน์ */
+    left: 20%;   /* ปรับตามดีไซน์ */
+    width: 60%;  /* ปรับตามดีไซน์ */
+    height: 20%; /* ปรับตามดีไซน์ */
+    border: 3px dashed red;
+    pointer-events: none; /* ทำให้คลิกทะลุกรอบนี้ได้ */
+  }
+  
+  .input-container {
+    margin-top: 20px;
+  }
+  
