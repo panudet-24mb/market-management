@@ -248,7 +248,7 @@ const TenantDetailPage = () => {
                             {contract.documents.map((doc, index) => (
                               <WrapItem key={index}>
                                 <a
-                                  href={`http://localhost:4000/${doc.path}`}
+                                  href={`https://gogo.justfordev.online/${doc.path}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   style={{ textDecoration: 'underline', color: 'blue' }}
