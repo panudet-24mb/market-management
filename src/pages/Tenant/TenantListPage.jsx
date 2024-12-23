@@ -159,11 +159,9 @@ const TenantListPage = () => {
                   colorScheme="green"
                   size="sm"
                   onClick={() => generateQRCode(tenant)}
-                  isDisabled={tenant.line_register}
-                  variant={tenant.line_register ? 'outline' : 'solid'}
                   mr={2}
                 >
-                  {tenant.line_register ? 'QR Generated' : 'Generate QR'}
+                  {tenant.line_register ? 'Update LINE' : 'Generate QR'}
                 </Button>
                 <Button
                   colorScheme="blue"
@@ -180,28 +178,27 @@ const TenantListPage = () => {
 
       {/* QR Code Modal */}
       <Modal isOpen={isQrModalOpen} onClose={onQrModalClose}>
-  <ModalOverlay />
-  <ModalContent>
-    <ModalHeader textAlign="center">
-      QR Code for {selectedTenant?.first_name} {selectedTenant?.last_name}
-    </ModalHeader>
-    <ModalCloseButton />
-    <ModalBody>
-      <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center">
-        <QRCode value={qrCodeData} size={256} />
-        <Text mt={4} fontSize="lg" fontWeight="bold">
-          {selectedTenant?.first_name} {selectedTenant?.last_name}
-        </Text>
-        <Text mt={2}>Customer Code: {selectedTenant?.code}</Text>
-        <Text>Phone: {selectedTenant?.phone}</Text>
-      </Box>
-    </ModalBody>
-    <ModalFooter justifyContent="center">
-      <Button onClick={onQrModalClose}>Close</Button>
-    </ModalFooter>
-  </ModalContent>
-</Modal>
-
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader textAlign="center">
+            QR Code for {selectedTenant?.first_name} {selectedTenant?.last_name}
+          </ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center">
+              <QRCode value={qrCodeData} size={256} />
+              <Text mt={4} fontSize="lg" fontWeight="bold">
+                {selectedTenant?.first_name} {selectedTenant?.last_name}
+              </Text>
+              <Text mt={2}>Customer Code: {selectedTenant?.code}</Text>
+              <Text>Phone: {selectedTenant?.phone}</Text>
+            </Box>
+          </ModalBody>
+          <ModalFooter justifyContent="center">
+            <Button onClick={onQrModalClose}>Close</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Box>
   );
 };

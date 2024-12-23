@@ -49,11 +49,11 @@ const SettingsPage = () => {
       // Fetch tenant details to check registration status
       const tenant = await tenantService.getTenantByCustomerCode(customerCode);
 
-      if (tenant.line_register) {
-        alert('Tenant is already registered.');
-        setLinkStatus('failed');
-        return;
-      }
+      // if (tenant.line_register) {
+      //   alert('Tenant is already registered.');
+      //   setLinkStatus('failed');
+      //   return;
+      // }
 
       // Proceed with linking
       const response = await tenantService.updateTenantFromLine({

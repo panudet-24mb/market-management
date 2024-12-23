@@ -37,7 +37,7 @@ from typing import Optional
 from datetime import datetime
 from sqlalchemy import Integer, func, and_
 from sqlalchemy import extract
-
+from line import send_line_flex_message
 
 
 UPLOAD_DIR = "./uploads"
@@ -580,11 +580,24 @@ def get_meter_usage_by_month(meter_id: int, month: str, db: Session = Depends(ge
         "img_path": None
     }
 
+
+
+@app.get("/api/tenants-find-cus-code/{customer_code}")
+def get_tenant_by_customer_code(customer_code: str, db: Session = Depends(get_db)):
+    tenant = db.query(Tenant).filter(Tenant.code == customer_code).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found with the provided customer_code.")
+    return tenant
+
+
+
 class LineUpdate(BaseModel):
     customer_code: str
     line_img: str
     line_name: str
     line_id: str
+
+
 @app.post("/api/tenants/line-connect")
 def update_tenant_from_line(line_data: LineUpdate, db: Session = Depends(get_db)):
     # Find the tenant by customer_code
@@ -602,14 +615,10 @@ def update_tenant_from_line(line_data: LineUpdate, db: Session = Depends(get_db)
     db.commit()
     db.refresh(tenant)
 
-    return {"message": "Tenant updated successfully", "tenant": tenant}
+    # Send a rich message via LINE Messaging API
+    send_line_flex_message(tenant.line_id)
 
-@app.get("/api/tenants-find-cus-code/{customer_code}")
-def get_tenant_by_customer_code(customer_code: str, db: Session = Depends(get_db)):
-    tenant = db.query(Tenant).filter(Tenant.code == customer_code).first()
-    if not tenant:
-        raise HTTPException(status_code=404, detail="Tenant not found with the provided customer_code.")
-    return tenant
+    return {"message": "Tenant updated successfully", "tenant": tenant}
 
 
 if __name__ == "__main__":
