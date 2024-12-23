@@ -9,7 +9,7 @@ import tenantService from '../../services/tenentService'; // Import the service
 const SettingsPage = () => {
   const [userData, setUserData] = useState(null);
   const [linkStatus, setLinkStatus] = useState('');
-  const [errorMessage, setErrorMessage] = useState(''); // State to store error messages
+  const [errorMessage, setErrorMessage] = useState('');
   const [searchParams] = useSearchParams();
   const customerCode = searchParams.get('customer_code');
 
@@ -44,8 +44,18 @@ const SettingsPage = () => {
 
     try {
       setLinkStatus('loading');
-      setErrorMessage(''); // Clear any previous error message
+      setErrorMessage('');
 
+      // Fetch tenant details to check registration status
+      const tenant = await tenantService.getTenantByCustomerCode(customerCode);
+
+      if (tenant.line_register) {
+        alert('Tenant is already registered.');
+        setLinkStatus('failed');
+        return;
+      }
+
+      // Proceed with linking
       const response = await tenantService.updateTenantFromLine({
         customer_code: customerCode,
         line_img: userData?.avatar,
@@ -53,13 +63,12 @@ const SettingsPage = () => {
         line_id: liff.getContext().userId,
       });
 
-      console.log("API Response:", response); // Log the response
-
+      console.log("API Response:", response);
       setLinkStatus('success');
       alert('เชื่อมต่อสำเร็จ! ระบบจะปิดหน้าต่างนี้');
       liff.closeWindow(); // Close LIFF app
     } catch (error) {
-      console.error("API Error:", error); // Log the error
+      console.error("API Error:", error);
       setErrorMessage(error.message || "An unexpected error occurred.");
       setLinkStatus('failed');
     }

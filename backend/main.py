@@ -604,6 +604,14 @@ def update_tenant_from_line(line_data: LineUpdate, db: Session = Depends(get_db)
 
     return {"message": "Tenant updated successfully", "tenant": tenant}
 
+@app.get("/api/tenants-find-cus-code/{customer_code}")
+def get_tenant_by_customer_code(customer_code: str, db: Session = Depends(get_db)):
+    tenant = db.query(Tenant).filter(Tenant.code == customer_code).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found with the provided customer_code.")
+    return tenant
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=4000 , workers=1)

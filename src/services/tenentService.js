@@ -95,6 +95,18 @@ const tenantService = {
       }
     }
   },
+  getTenantByCustomerCode: async (customerCode) => {
+    try {
+      const response = await axios.get(`${API_URL}/tenants-find-cus-code/${customerCode}`);
+      return response.data;
+    } catch (error) {
+      if (error.response && error.response.data) {
+        throw new Error(error.response.data.detail || 'Failed to fetch tenant by customer code.');
+      } else {
+        throw new Error(error.message || 'An unexpected error occurred.');
+      }
+    }
+  },
 };
 
 export default tenantService;
