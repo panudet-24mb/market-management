@@ -220,22 +220,25 @@ async def add_documents_to_contract(
 
 @app.get("/api/contracts/tenant/{tenant_id}")
 def get_contracts_by_tenant(tenant_id: int, db: Session = Depends(get_db)):
+    # Load contracts and join with locks
     contracts = (
         db.query(Contract)
         .options(joinedload(Contract.documents))  # Eagerly load documents for contracts
+        .join(Lock, Lock.id == Contract.lock_id)  # Join with locks
         .filter(Contract.tenant_id == tenant_id)
         .all()
     )
 
     if not contracts:
-       return []
+        return []
 
-    # Construct the response with documents included
+    # Construct the response with documents and lock name included
     result = []
     for contract in contracts:
         result.append({
             "id": contract.id,
             "lock_id": contract.lock_id,
+            "name": contract.lock.lock_name,  # Include lock_name
             "tenant_id": contract.tenant_id,
             "contract_number": contract.contract_number,
             "start_date": contract.start_date,
