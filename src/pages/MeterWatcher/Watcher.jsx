@@ -17,34 +17,42 @@ export default function MeterReader() {
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
 
-  // Preview ภาพที่ snap (ROI)
+  // แสดงภาพ snapshot (ROI) หลังจาก snap
   const [snapShotUrl, setSnapShotUrl] = useState('')
-  // เก็บผลการอ่าน 6 หลัก (เช่น "012345")
+
+  // ข้อความ OCR ที่อ่านได้ (6 หลัก)
   const [meterReading, setMeterReading] = useState('')
-  // แยกเป็น 6 digits (เช่น ["0","1","2","3","4","5"])
-  const [meterDigits, setMeterDigits] = useState(['','','','','',''])
-  // Debug ข้อความ OCR เต็ม ๆ
+  // แยกเป็น 6 digits
+  const [meterDigits, setMeterDigits] = useState(['', '', '', '', '', ''])
+
+  // Debug text จาก OCR
   const [ocrDebugText, setOcrDebugText] = useState('')
 
-  // จัดการโหลด OCR
+  // สถานะโหลด OCR
   const [isLoading, setIsLoading] = useState(false)
   const [progress, setProgress] = useState(0)
 
   const toast = useToast()
 
-  // ROI ที่เรากำหนดเป็นเปอร์เซ็นต์ (ตามตัวอย่าง)
-  // height เดิม = 0.2 แต่เราจะนำไป / 2 ตอนคำนวณจริง
+  /**
+   * ROI = สัดส่วน (0-1) ของ video
+   * - top: 0.3 = 30% จากขอบบน
+   * - left: 0.2 = 20% จากขอบซ้าย
+   * - width: 0.6 = 60% ของความกว้าง
+   * - height: 0.25 = 25% ของความสูง (ตัวอย่างกำหนดเป็นสี่เหลี่ยมผืนผ้า)
+   */
   const ROI = {
     top: 0.3,
     left: 0.2,
     width: 0.6,
-    height: 0.2,
+    height: 0.25,
   }
 
   // ---------------------------
   //  useEffect เปิดกล้อง (iOS Fix + playsInline)
   // ---------------------------
   useEffect(() => {
+    // Safari iOS ต้องกำหนด playsInline, autoplay, muted ให้ video
     if (videoRef.current) {
       videoRef.current.setAttribute('playsinline', true)
       videoRef.current.setAttribute('autoplay', true)
@@ -54,7 +62,7 @@ export default function MeterReader() {
     const constraints = {
       audio: false,
       video: {
-        facingMode: 'environment',
+        facingMode: 'environment', // ใช้กล้องหลัง
         width: { ideal: 1280 },
         height: { ideal: 720 },
       },
@@ -70,12 +78,11 @@ export default function MeterReader() {
       })
       .catch((err) => {
         console.error('Error accessing camera:', err)
-        // fallback ถ้า environment ใช้ไม่ได้
+        // fallback: ใช้กล้องหน้าแทน
         const fallbackConstraints = {
           audio: false,
           video: { facingMode: 'user' },
         }
-
         navigator.mediaDevices
           .getUserMedia(fallbackConstraints)
           .then((fallbackStream) => {
@@ -113,7 +120,7 @@ export default function MeterReader() {
     setIsLoading(true)
     setProgress(0)
     setMeterReading('')
-    setMeterDigits(['','','','','',''])
+    setMeterDigits(['', '', '', '', '', ''])
     setOcrDebugText('')
     setSnapShotUrl('')
 
@@ -121,27 +128,18 @@ export default function MeterReader() {
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
 
-    // วาดภาพจาก video ลงใน canvas
+    // วาด video ลงใน canvas ขนาดเต็ม
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
     // ------------------------------------
-    // แก้จุด ROI สูงครึ่งเดียว: /2 ที่ h
+    // คำนวณพิกัด px ของ ROI ให้ตรงกับ box สีแดง
     // ------------------------------------
     const x = canvas.width * ROI.left
     const y = canvas.height * ROI.top
     const w = canvas.width * ROI.width
-    // เดิม: const h = canvas.height * ROI.height
-    // ใหม่: แบ่งครึ่ง
-    const h = (canvas.height * ROI.height) / 2
-
-    // หมายเหตุ: ถ้าต้องการให้ ROI ยังคงอยู่ตรงกลางเดิม
-    // อาจต้องปรับค่า y เช่น
-    // const hFull = canvas.height * ROI.height
-    // const h = hFull / 2
-    // const y = (canvas.height * ROI.top) + (hFull / 4)
-    // เพื่อเลื่อน ROI ลง/ขึ้นให้กึ่งกลางเท่าเดิม
+    const h = canvas.height * ROI.height
 
     // ดึงเฉพาะบริเวณ ROI
     const roiImageData = ctx.getImageData(x, y, w, h)
@@ -172,7 +170,7 @@ export default function MeterReader() {
       const fullText = result.data.text
       setOcrDebugText(fullText)
 
-      // เอาเฉพาะตัวเลข
+      // ดึงเฉพาะตัวเลข
       let cleanedText = fullText.replace(/\D+/g, '')
       // ถ้าน้อยกว่า 6 ตัว เติม 0 ข้างหน้า
       cleanedText = cleanedText.padStart(6, '0')
@@ -196,10 +194,10 @@ export default function MeterReader() {
   }
 
   // ---------------------------
-  // handleDigitChange: ผู้ใช้แก้ไขทีละหลัก
+  // handleDigitChange: ผู้ใช้แก้ทีละหลัก
   // ---------------------------
   const handleDigitChange = (index, newVal) => {
-    if (!/^\d?$/.test(newVal)) return // ใส่ได้เฉพาะตัวเลข 0-9 หรือว่าง
+    if (!/^\d?$/.test(newVal)) return // รับแค่ตัวเลข 0-9 หรือว่าง
     const updated = [...meterDigits]
     updated[index] = newVal
     setMeterDigits(updated)
@@ -209,26 +207,27 @@ export default function MeterReader() {
   return (
     <Box w="100%" minH="100vh" bg="gray.100" py={4} px={2}>
       <Center mb={4}>
-        <Heading size="md">Snap มิเตอร์ไฟ (ROI Height /2)</Heading>
+        <Heading size="md">Snap มิเตอร์ไฟ (Fixed ROI Rectangle)</Heading>
       </Center>
 
       {/* --------------------------------------------------- */}
-      {/* Video + ROI */}
+      {/* Video + ROI: สี่เหลี่ยมผืนผ้า ตรงกับ snap 100% */}
       {/* --------------------------------------------------- */}
       <Box position="relative" mb={4} zIndex={1}>
         <video
           ref={videoRef}
           style={{ width: '100%', height: 'auto' }}
         />
-        {/* กรอบ ROI (เป็นเส้นประสีแดง) */}
+        {/* กล่อง ROI สีแดง: rectangle */}
         <Box
           position="absolute"
           border="3px dashed red"
           pointerEvents="none"
-          top="30%"
-          left="20%"
-          width="60%"
-          height="20%"       // เดิม
+          // ตำแหน่ง + ขนาด ตรงตาม ROI ข้างบน
+          top={`${ROI.top * 100}%`}
+          left={`${ROI.left * 100}%`}
+          width={`${ROI.width * 100}%`}
+          height={`${ROI.height * 100}%`}
           zIndex={2}
         />
       </Box>
@@ -310,9 +309,7 @@ export default function MeterReader() {
           mx="auto"
           zIndex={3}
         >
-          <Text fontSize="sm" mb={1} fontWeight="bold">
-            OCR Debug Text:
-          </Text>
+          <Text fontSize="sm" mb={1} fontWeight="bold">OCR Debug Text:</Text>
           <Text fontSize="sm" whiteSpace="pre-wrap">
             {ocrDebugText}
           </Text>
