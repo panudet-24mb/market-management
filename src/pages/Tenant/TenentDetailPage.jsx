@@ -227,7 +227,7 @@ const TenantDetailPage = () => {
                   return (
                     <Tr key={contract.id}>
                       <Td>{contract.contract_number}</Td>
-                      <Td>{locks.find((lock) => lock.id === contract.lock_id)?.name || 'Unknown'}</Td>
+                      <Td>{contract.name || 'Unknown'}</Td>
                       <Td>{parseFloat(contract.rent_rate).toFixed(2)}</Td>
                       <Td>{parseFloat(contract.water_rate).toFixed(2)}</Td>
                       <Td>{parseFloat(contract.electric_rate).toFixed(2)}</Td>
