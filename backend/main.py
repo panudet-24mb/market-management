@@ -585,7 +585,7 @@ class LineUpdate(BaseModel):
     line_img: str
     line_name: str
     line_id: str
-@app.put("/tenants/line-connect")
+@app.post("/tenants/line-connect")
 def update_tenant_from_line(line_data: LineUpdate, db: Session = Depends(get_db)):
     # Find the tenant by customer_code
     tenant = db.query(Tenant).filter(Tenant.code == line_data.customer_code).first()

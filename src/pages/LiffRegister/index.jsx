@@ -4,11 +4,12 @@ import { useSearchParams } from 'react-router-dom';
 import liff from '@line/liff';
 import { IoIosLink } from "react-icons/io";
 import { Logo_FULL_JPG } from '../../assets/Images';
-import { updateTenantFromLine } from '../../services/tenentService'; // Import the service
+import tenantService from '../../services/tenentService'; // Import the service
 
 const SettingsPage = () => {
   const [userData, setUserData] = useState(null);
   const [linkStatus, setLinkStatus] = useState('');
+  const [errorMessage, setErrorMessage] = useState(''); // State to store error messages
   const [searchParams] = useSearchParams();
   const customerCode = searchParams.get('customer_code');
 
@@ -28,6 +29,7 @@ const SettingsPage = () => {
         }
       } catch (error) {
         console.error("LIFF initialization failed:", error);
+        setErrorMessage("Failed to initialize LIFF. Please try again.");
       }
     };
 
@@ -36,25 +38,29 @@ const SettingsPage = () => {
 
   const handleLinkAPI = async () => {
     if (!customerCode) {
-      alert('Customer code is missing. Please contact support.');
+      setErrorMessage("Customer code is missing. Please contact support.");
       return;
     }
 
     try {
       setLinkStatus('loading');
+      setErrorMessage(''); // Clear any previous error message
 
-      await updateTenantFromLine({
+      const response = await tenantService.updateTenantFromLine({
         customer_code: customerCode,
         line_img: userData?.avatar,
         line_name: userData?.name,
         line_id: liff.getContext().userId,
       });
 
+      console.log("API Response:", response); // Log the response
+
       setLinkStatus('success');
       alert('เชื่อมต่อสำเร็จ! ระบบจะปิดหน้าต่างนี้');
       liff.closeWindow(); // Close LIFF app
     } catch (error) {
-      alert(`เกิดข้อผิดพลาด: ${error.message}`);
+      console.error("API Error:", error); // Log the error
+      setErrorMessage(error.message || "An unexpected error occurred.");
       setLinkStatus('failed');
     }
   };
@@ -78,6 +84,11 @@ const SettingsPage = () => {
           <Text fontWeight="bold" color="blue.500">
             Customer Code: {customerCode || 'No customer code provided'}
           </Text>
+          {errorMessage && (
+            <Text color="red.500" mt={2}>
+              {errorMessage}
+            </Text>
+          )}
           {userData ? (
             <>
               <div style={{ display: 'flex', alignItems: 'center' }}>
