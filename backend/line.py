@@ -1,9 +1,8 @@
 import requests
 from fastapi import HTTPException, Depends
 from sqlalchemy.orm import Session
-from .schemas import LineUpdate
-from .models import Tenant
-from .database import get_db
+
+
 
 LINE_CHANNEL_ACCESS_TOKEN = "5Aep7jr1U7BXXctmkLpxwDKWaafO5SiwStoy8qJCvQrWsPhCcl1tkbSbt+svdBTEYFdxhoEl/1XLSKHAoyXRqENA+aT8x6ob5A2Cx/LTQRdMJH1K0SAK08a6YuMv8aWNA36QuEcCB1N9JowSZLBe4QdB04t89/1O/w1cDnyilFU="
 
