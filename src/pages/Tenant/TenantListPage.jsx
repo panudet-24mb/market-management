@@ -31,7 +31,7 @@ import { useNavigate } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 import tenantService from '../../services/tenentService';
 
-const LIFF_URL = "https://liff.line.me/2006705482-9Dl1LXVO";
+const LIFF_URL = "https://liff.line.me/2006705987-JqM5Ky0Q";
 
 const TenantListPage = () => {
   const [tenants, setTenants] = useState([]);
