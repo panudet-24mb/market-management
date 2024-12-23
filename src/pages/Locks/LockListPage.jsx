@@ -19,9 +19,6 @@ import zoneService from '../../services/zoneService';
 
 const ITEMS_PER_PAGE = 100;
 
-
-
-
 const LockListPage = () => {
   const [locks, setLocks] = useState([]);
   const [zones, setZones] = useState([]);
@@ -157,7 +154,6 @@ const LockListPage = () => {
       <Heading size="lg" mb={4}>
         Lock Management
       </Heading>
-
       <Flex mb={4} gap={4}>
         <Input placeholder="Search by lock name" value={search} onChange={handleSearch} />
         <Select placeholder="Filter by zone" value={selectedZone} onChange={handleZoneFilter}>

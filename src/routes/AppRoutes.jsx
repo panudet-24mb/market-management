@@ -1,6 +1,8 @@
 // src/routes/AppRoutes.jsx
-import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Fragment } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import Layout from "../assets/Layout";
+
 import DashboardPage from '../pages/Dashboard/DashboardPage.jsx';
 import ZoneListPage from '../pages/Zones/ZoneListPage.jsx';
 import LockListPage from '../pages/Locks/LockListPage.jsx'; // Import LockListPage
@@ -11,40 +13,73 @@ import LoginPage from '../pages/Auth/LoginPage.jsx';
 import { useSelector } from 'react-redux';
 import LockCreatePage from '../pages/Locks/LockCreatePage.jsx';
 import LockDetailPage from '../pages/Locks/LockDetailPage.jsx';
-import TenantCreatePage  from '../pages/Tenant/TenantCreatePage.jsx';
+import TenantCreatePage from '../pages/Tenant/TenantCreatePage.jsx';
 import TenantDetailPage from '../pages/Tenant/TenentDetailPage.jsx';
 import MeterManagementPage from '../pages/Meter/MeterManagementPage.jsx';
+import LiffRegisterPage from '../pages/LiffRegister';
+// import NavigationBar from './src/components/NavigationBar.jsx';
+
+import PrivateRoute from "./PrivateRoute.jsx";
+
 const AppRoutes = () => {
   const { isAuthenticated } = useSelector(state => state.auth);
 
   return (
-    <Routes>
-      {!isAuthenticated && (
-        <Route path="/login" element={<LoginPage />} />
-      )}
-      {isAuthenticated ? (
-        <>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/zones" element={<ZoneListPage />} />
-          <Route path="/locks" element={<LockListPage />} />
-          <Route path="/locks/new" element={<LockCreatePage />} />
-          <Route path="/locks/:id" element={<LockDetailPage />} />
-          <Route path="/billings" element={<BillingListPage />} />
-          <Route path="/tenant-list" element={<TenantListPage />} />
-          <Route path="/tenants/new" element={<TenantCreatePage />} />
-          <Route path="/tenants/:id" element={<TenantDetailPage />} />
-          <Route path="/meters" element={<MeterManagementPage />} />
+
+    <Fragment>
+      <Routes>
+        <Route exact path='/liff-register' element={<LiffRegisterPage />} />
+        <Route exact path='/login' element={<LoginPage />} />
+
+        <Route exact path='/' element={<PrivateRoute />}>
+          <Route exact path='/' element={<DashboardPage />} />
+
+          <Route exact path='/zones' element={<ZoneListPage />} />
+          <Route exact path='/locks' element={<LockListPage />} />
+          <Route exact path="/locks/new" element={<LockCreatePage />} />
+          <Route exact path="/locks/:id" element={<LockDetailPage />} />
+          <Route exact path='/billings' element={<BillingListPage />} />
+          <Route exact path='/tenant-list' element={<TenantListPage />} />
+          <Route exact path='/tenants/new' element={<TenantCreatePage />} />
+          <Route exact path='/tenants/:id' element={<TenantDetailPage />} />
+          <Route exact path='/meters' element={<MeterManagementPage />} />
+          <Route exact path='/settings' element={<SettingsPage />} />
+
+        </Route>
+      </Routes>
+    </Fragment>
+
+    // <Routes>
+    //   {!isAuthenticated && (
+    //     <Route path="/login" element={<LoginPage />} />
+    //   )}
+    //    <Route path="/liff-register" element={<LiffRegisterPage />} />
+
+    //   {isAuthenticated ? (
+    //     <>
+    //     <Layout>
+    //     <Route path="/" element={<DashboardPage />} />
+    //       <Route path="/zones" element={<ZoneListPage />} />
+    //       <Route path="/locks" element={<LockListPage />} />
+    //       <Route path="/locks/new" element={<LockCreatePage />} />
+    //       <Route path="/locks/:id" element={<LockDetailPage />} />
+    //       <Route path="/billings" element={<BillingListPage />} />
+    //       <Route path="/tenant-list" element={<TenantListPage />} />
+    //       <Route path="/tenants/new" element={<TenantCreatePage />} />
+    //       <Route path="/tenants/:id" element={<TenantDetailPage />} />
+    //       <Route path="/meters" element={<MeterManagementPage />} />
 
 
 
-          <Route path="/settings" element={<SettingsPage />} />
-          
-          <Route path="*" element={<Navigate to="/" />} />
-        </>
-      ) : (
-        <Route path="*" element={<Navigate to="/login" />} />
-      )}
-    </Routes>
+    //       <Route path="/settings" element={<SettingsPage />} />
+    //     </Layout>
+
+    //       <Route path="*" element={<Navigate to="/" />} />
+    //     </>
+    //   ) : (
+    //     <Route path="*" element={<Navigate to="/login" />} />
+    //   )}
+    // </Routes>
   );
 };
 

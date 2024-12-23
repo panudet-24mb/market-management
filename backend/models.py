@@ -57,6 +57,9 @@ class Tenant(Base):
     profile_image = Column(String)
     line_id = Column(String)
     note = Column(Text)
+    line_name = Column(String)
+    line_register = Column(Boolean)
+    line_img = Column(String)
 
     # Relationships
     contracts = relationship("Contract", back_populates="tenant")

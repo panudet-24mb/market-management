@@ -580,7 +580,29 @@ def get_meter_usage_by_month(meter_id: int, month: str, db: Session = Depends(ge
         "img_path": None
     }
 
+class LineUpdate(BaseModel):
+    customer_code: str
+    line_img: str
+    line_name: str
+    line_id: str
+@app.put("/tenants/line-connect")
+def update_tenant_from_line(line_data: LineUpdate, db: Session = Depends(get_db)):
+    # Find the tenant by customer_code
+    tenant = db.query(Tenant).filter(Tenant.code == line_data.customer_code).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found with the provided customer_code.")
+    
+    # Update tenant fields
+    tenant.line_img = line_data.line_img
+    tenant.line_name = line_data.line_name
+    tenant.line_id = line_data.line_id
+    tenant.line_register = True
 
+    # Commit changes
+    db.commit()
+    db.refresh(tenant)
+
+    return {"message": "Tenant updated successfully", "tenant": tenant}
 
 if __name__ == "__main__":
     import uvicorn

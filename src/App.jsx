@@ -15,7 +15,7 @@ function App() {
       <ChakraProvider theme={theme}>
         
         <BrowserRouter>
-          <NavigationBar />
+          {/* <NavigationBar /> */}
           <AppRoutes />
        
         </BrowserRouter>

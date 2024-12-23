@@ -10,6 +10,9 @@ CREATE TABLE tenants (
     address VARCHAR(255) ,
     profile_image VARCHAR(255),
     line_id VARCHAR(255),
+    line_name VARCHAR(255),
+    line_register BOOLEAN,
+    line_img VARCHAR(255),
     note TEXT
 );
 

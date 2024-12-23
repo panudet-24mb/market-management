@@ -75,6 +75,32 @@ const tenantService = {
     }
     return await response.json();
   },
+  updateTenantFromLine: async ({ customer_code, line_img, line_name, line_id }) => {
+    try {
+      const response = await fetch(`${API_URL}/tenants/line-connect`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customer_code,
+          line_img,
+          line_name,
+          line_id,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to update tenant from LINE.');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating tenant from LINE:', error.message);
+      throw error;
+    }
+  },
 };
 
 export default tenantService;
