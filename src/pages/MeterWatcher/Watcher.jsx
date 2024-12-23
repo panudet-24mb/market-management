@@ -45,7 +45,7 @@ export default function MeterReader() {
     top: 0.3,
     left: 0.2,
     width: 0.6,
-    height: 0.25,
+    height: 0.1275,
   }
 
   // ---------------------------
@@ -207,7 +207,7 @@ export default function MeterReader() {
   return (
     <Box w="100%" minH="100vh" bg="gray.100" py={4} px={2}>
       <Center mb={4}>
-        <Heading size="md">Snap มิเตอร์ไฟ (Fixed ROI Rectangle)</Heading>
+        <Heading size="md">คุณปพน ช่วย snap ให้ด้วยงับ</Heading>
       </Center>
 
       {/* --------------------------------------------------- */}
