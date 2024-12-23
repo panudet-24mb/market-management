@@ -16,7 +16,7 @@ const SettingsPage = () => {
   useEffect(() => {
     const initializeLiff = async () => {
       try {
-        await liff.init({ liffId: "2006705482-9Dl1LXVO" });
+        await liff.init({ liffId: "2006705987-JqM5Ky0Q" });
 
         if (liff.isLoggedIn()) {
           const profile = await liff.getProfile();
