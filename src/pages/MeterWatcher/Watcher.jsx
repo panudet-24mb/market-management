@@ -17,16 +17,22 @@ export default function MeterReader() {
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
 
+  // Preview ภาพที่ snap (ROI)
   const [snapShotUrl, setSnapShotUrl] = useState('')
+  // เก็บผลการอ่าน 6 หลัก (เช่น "012345")
   const [meterReading, setMeterReading] = useState('')
+  // แยกเป็น 6 digits (เช่น ["0","1","2","3","4","5"])
   const [meterDigits, setMeterDigits] = useState(['','','','','',''])
+  // Debug ข้อความ OCR เต็ม ๆ
   const [ocrDebugText, setOcrDebugText] = useState('')
+
+  // จัดการโหลด OCR
   const [isLoading, setIsLoading] = useState(false)
   const [progress, setProgress] = useState(0)
 
   const toast = useToast()
 
-  // ROI
+  // ROI (กำหนดเป็น % หรือ px ก็ได้)
   const ROI = {
     top: 0.3,
     left: 0.2,
@@ -34,44 +40,75 @@ export default function MeterReader() {
     height: 0.2,
   }
 
-  // เปิดกล้องเมื่อ mount
+  // ---------------------------
+  //  useEffect เปิดกล้อง (แก้ปัญหา iOS)
+  // ---------------------------
   useEffect(() => {
+    // Safari iOS ต้องกำหนด playsInline, autoplay, muted ให้ video ด้วย
+    if (videoRef.current) {
+      videoRef.current.setAttribute('playsinline', true)
+      videoRef.current.setAttribute('autoplay', true)
+      videoRef.current.setAttribute('muted', true)
+    }
+
     const constraints = {
+      audio: false,
       video: {
+        // พยายามใช้กล้องหลัง
         facingMode: 'environment',
         width: { ideal: 1280 },
         height: { ideal: 720 },
       },
-      audio: false,
     }
 
-    navigator.mediaDevices.getUserMedia(constraints)
-      .then(stream => {
+    navigator.mediaDevices
+      .getUserMedia(constraints)
+      .then((stream) => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream
           videoRef.current.play()
         }
       })
-      .catch(err => {
-        console.error('Error accessing camera: ', err)
-        toast({
-          title: 'Error accessing camera',
-          description: err.message,
-          status: 'error',
-          isClosable: true,
-        })
+      .catch((err) => {
+        console.error('Error accessing camera:', err)
+
+        // fallback: ถ้าเจอ error ให้ลองใช้กล้องหน้าแทน
+        const fallbackConstraints = {
+          audio: false,
+          video: { facingMode: 'user' },
+        }
+
+        navigator.mediaDevices
+          .getUserMedia(fallbackConstraints)
+          .then((fallbackStream) => {
+            if (videoRef.current) {
+              videoRef.current.srcObject = fallbackStream
+              videoRef.current.play()
+            }
+          })
+          .catch((err2) => {
+            console.error('Fallback error accessing camera:', err2)
+            toast({
+              title: 'Error accessing camera',
+              description: err2.message,
+              status: 'error',
+              isClosable: true,
+            })
+          })
       })
 
-    // Cleanup
+    // Cleanup: หยุดกล้องเมื่อ unmount
     return () => {
       if (videoRef.current && videoRef.current.srcObject) {
         const tracks = videoRef.current.srcObject.getTracks()
-        tracks.forEach(track => track.stop())
+        tracks.forEach((track) => track.stop())
       }
     }
   }, [toast])
 
-  // Snap + OCR
+  // ---------------------------
+  //  handleSnap: ถ่ายภาพ + OCR
+  // ---------------------------
   const handleSnap = async () => {
     if (!videoRef.current || !canvasRef.current) return
 
@@ -86,32 +123,35 @@ export default function MeterReader() {
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
 
+    // วาดภาพจาก video ลงใน canvas
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
-    // คำนวณ ROI
+    // คำนวณพิกัด ROI เป็น px
     const x = canvas.width * ROI.left
     const y = canvas.height * ROI.top
     const w = canvas.width * ROI.width
     const h = canvas.height * ROI.height
 
-    // ดึง ImageData
+    // ดึงเฉพาะบริเวณ ROI
     const roiImageData = ctx.getImageData(x, y, w, h)
 
-    // สร้าง canvas ย่อย
+    // สร้าง canvas ย่อยสำหรับ ROI
     const roiCanvas = document.createElement('canvas')
     const roiCtx = roiCanvas.getContext('2d')
     roiCanvas.width = w
     roiCanvas.height = h
     roiCtx.putImageData(roiImageData, 0, 0)
 
+    // แปลงเป็น Base64
     const roiBase64 = roiCanvas.toDataURL('image/png')
     setSnapShotUrl(roiBase64)
 
     try {
+      // OCR เฉพาะตัวเลข (PSM=7, single line)
       const result = await Tesseract.recognize(roiBase64, 'eng', {
-        logger: m => {
+        logger: (m) => {
           if (m.status === 'recognizing text') {
             setProgress(Math.round(m.progress * 100))
           }
@@ -123,10 +163,11 @@ export default function MeterReader() {
       const fullText = result.data.text
       setOcrDebugText(fullText)
 
+      // เอาเฉพาะตัวเลข
       let cleanedText = fullText.replace(/\D+/g, '')
-      // เติม 0 ด้านหน้าถ้าน้อยกว่า 6
+      // ถ้าน้อยกว่า 6 ตัว เติม 0 ข้างหน้า
       cleanedText = cleanedText.padStart(6, '0')
-      // ถ้ามากกว่า 6 ให้ตัดเหลือ 6
+      // ถ้าเกิน 6 ตัว ตัดเหลือ 6
       cleanedText = cleanedText.slice(-6)
 
       setMeterReading(cleanedText)
@@ -145,9 +186,11 @@ export default function MeterReader() {
     }
   }
 
-  // เปลี่ยนค่าทีละหลัก
+  // ---------------------------
+  // handleDigitChange: ผู้ใช้แก้ไขทีละหลัก
+  // ---------------------------
   const handleDigitChange = (index, newVal) => {
-    if (!/^\d?$/.test(newVal)) return
+    if (!/^\d?$/.test(newVal)) return // ใส่ได้เฉพาะตัวเลข 0-9 หรือว่าง
     const updated = [...meterDigits]
     updated[index] = newVal
     setMeterDigits(updated)
@@ -156,20 +199,19 @@ export default function MeterReader() {
 
   return (
     <Box w="100%" minH="100vh" bg="gray.100" py={4} px={2}>
-      
       <Center mb={4}>
-        <Heading size="md">คุณปพน snap มาให้ผมด้วยครับ</Heading>
+        <Heading size="md">Snap มิเตอร์ไฟ (iOS Fix)</Heading>
       </Center>
 
       {/* --------------------------------------------------- */}
-      {/* วิดีโอ + ROI (วางตำแหน่ง zIndex=1 เพื่ออยู่ด้านล่าง) */}
+      {/* Video + ROI */}
       {/* --------------------------------------------------- */}
       <Box position="relative" mb={4} zIndex={1}>
         <video
           ref={videoRef}
           style={{ width: '100%', height: 'auto' }}
         />
-        {/* กล่อง ROI */}
+        {/* กรอบ ROI */}
         <Box
           position="absolute"
           border="3px dashed red"
@@ -178,7 +220,7 @@ export default function MeterReader() {
           left="20%"
           width="60%"
           height="20%"
-          zIndex={2} 
+          zIndex={2}
         />
       </Box>
 
@@ -226,7 +268,6 @@ export default function MeterReader() {
               type="text"
               textAlign="center"
               maxLength={1}
-              // ปรับขนาดให้เห็นชัดเจน
               width="3rem"
               height="3rem"
               fontSize="2xl"
@@ -234,7 +275,6 @@ export default function MeterReader() {
               bg="white"
               value={digit}
               onChange={(e) => handleDigitChange(index, e.target.value)}
-              // ถ้ารู้สึกโดนบัง อาจเพิ่ม boxShadow หรือ border ให้ชัด
               border="2px solid"
               borderColor="gray.300"
               borderRadius="md"
