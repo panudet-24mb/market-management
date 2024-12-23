@@ -32,7 +32,8 @@ export default function MeterReader() {
 
   const toast = useToast()
 
-  // ROI (กำหนดเป็น % หรือ px ก็ได้)
+  // ROI ที่เรากำหนดเป็นเปอร์เซ็นต์ (ตามตัวอย่าง)
+  // height เดิม = 0.2 แต่เราจะนำไป / 2 ตอนคำนวณจริง
   const ROI = {
     top: 0.3,
     left: 0.2,
@@ -41,10 +42,9 @@ export default function MeterReader() {
   }
 
   // ---------------------------
-  //  useEffect เปิดกล้อง (แก้ปัญหา iOS)
+  //  useEffect เปิดกล้อง (iOS Fix + playsInline)
   // ---------------------------
   useEffect(() => {
-    // Safari iOS ต้องกำหนด playsInline, autoplay, muted ให้ video ด้วย
     if (videoRef.current) {
       videoRef.current.setAttribute('playsinline', true)
       videoRef.current.setAttribute('autoplay', true)
@@ -54,7 +54,6 @@ export default function MeterReader() {
     const constraints = {
       audio: false,
       video: {
-        // พยายามใช้กล้องหลัง
         facingMode: 'environment',
         width: { ideal: 1280 },
         height: { ideal: 720 },
@@ -71,8 +70,7 @@ export default function MeterReader() {
       })
       .catch((err) => {
         console.error('Error accessing camera:', err)
-
-        // fallback: ถ้าเจอ error ให้ลองใช้กล้องหน้าแทน
+        // fallback ถ้า environment ใช้ไม่ได้
         const fallbackConstraints = {
           audio: false,
           video: { facingMode: 'user' },
@@ -128,11 +126,22 @@ export default function MeterReader() {
     canvas.height = video.videoHeight
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
-    // คำนวณพิกัด ROI เป็น px
+    // ------------------------------------
+    // แก้จุด ROI สูงครึ่งเดียว: /2 ที่ h
+    // ------------------------------------
     const x = canvas.width * ROI.left
     const y = canvas.height * ROI.top
     const w = canvas.width * ROI.width
-    const h = canvas.height * ROI.height
+    // เดิม: const h = canvas.height * ROI.height
+    // ใหม่: แบ่งครึ่ง
+    const h = (canvas.height * ROI.height) / 2
+
+    // หมายเหตุ: ถ้าต้องการให้ ROI ยังคงอยู่ตรงกลางเดิม
+    // อาจต้องปรับค่า y เช่น
+    // const hFull = canvas.height * ROI.height
+    // const h = hFull / 2
+    // const y = (canvas.height * ROI.top) + (hFull / 4)
+    // เพื่อเลื่อน ROI ลง/ขึ้นให้กึ่งกลางเท่าเดิม
 
     // ดึงเฉพาะบริเวณ ROI
     const roiImageData = ctx.getImageData(x, y, w, h)
@@ -200,7 +209,7 @@ export default function MeterReader() {
   return (
     <Box w="100%" minH="100vh" bg="gray.100" py={4} px={2}>
       <Center mb={4}>
-        <Heading size="md">Snap มิเตอร์ไฟ (iOS Fix)</Heading>
+        <Heading size="md">Snap มิเตอร์ไฟ (ROI Height /2)</Heading>
       </Center>
 
       {/* --------------------------------------------------- */}
@@ -211,7 +220,7 @@ export default function MeterReader() {
           ref={videoRef}
           style={{ width: '100%', height: 'auto' }}
         />
-        {/* กรอบ ROI */}
+        {/* กรอบ ROI (เป็นเส้นประสีแดง) */}
         <Box
           position="absolute"
           border="3px dashed red"
@@ -219,7 +228,7 @@ export default function MeterReader() {
           top="30%"
           left="20%"
           width="60%"
-          height="20%"
+          height="20%"       // เดิม
           zIndex={2}
         />
       </Box>
@@ -301,7 +310,9 @@ export default function MeterReader() {
           mx="auto"
           zIndex={3}
         >
-          <Text fontSize="sm" mb={1} fontWeight="bold">OCR Debug Text:</Text>
+          <Text fontSize="sm" mb={1} fontWeight="bold">
+            OCR Debug Text:
+          </Text>
           <Text fontSize="sm" whiteSpace="pre-wrap">
             {ocrDebugText}
           </Text>
