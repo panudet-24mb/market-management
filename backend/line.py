@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 
 
-LINE_CHANNEL_ACCESS_TOKEN = "5Aep7jr1U7BXXctmkLpxwDKWaafO5SiwStoy8qJCvQrWsPhCcl1tkbSbt+svdBTEYFdxhoEl/1XLSKHAoyXRqENA+aT8x6ob5A2Cx/LTQRdMJH1K0SAK08a6YuMv8aWNA36QuEcCB1N9JowSZLBe4QdB04t89/1O/w1cDnyilFU="
+LINE_CHANNEL_ACCESS_TOKEN = "Ka7mKbqvKVp0CiBIcSGsJJbOCWCaOxRYVN7PRwq1Zb18A7qSATlyoNWes31FS6sp4vHkVvBlpQiSq50aZzN4Cub6oCSRIkJZLU6bOQLcdPNSloM/oFZU+ebEWK/zbXITU6W6p2ZfD3qQCHnRL6rSYAdB04t89/1O/w1cDnyilFU="
 
 def send_line_flex_message(line_id: str):
     url = "https://api.line.me/v2/bot/message/push"
