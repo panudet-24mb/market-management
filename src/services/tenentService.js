@@ -1,4 +1,6 @@
 import {PROD_IP} from './ipconfig';
+import axios from 'axios';
+
 
 const API_URL = PROD_IP;
 
@@ -76,23 +78,22 @@ const tenantService = {
     return await response.json();
   },
   updateTenantFromLine: async ({ customer_code, line_img, line_name, line_id }) => {
-    const response = await fetch(`${API_URL}/tenants/line-connect`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    try {
+      const response = await axios.post(`${API_URL}/tenants/line-connect`, {
         customer_code,
         line_img,
         line_name,
         line_id,
-      }),
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Failed to update tenant from LINE.');
+      });
+
+      return response.data; // Return the response data
+    } catch (error) {
+      if (error.response && error.response.data) {
+        throw new Error(error.response.data.detail || 'Failed to update tenant from LINE.');
+      } else {
+        throw new Error(error.message || 'An unexpected error occurred.');
+      }
     }
-    return await response.json();
   },
 };
 
