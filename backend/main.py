@@ -735,7 +735,7 @@ def remove_lock_reserve(reserve_id: int, update: LockReserveUpdate, db: Session 
         db.commit()
         return {"message": "Lock reserve removed successfully", "reserve": reserve}
     except Exception as e:
-        raise HTTPException(status_code=200, detail=str(e))
+        return   {"message": "Failed to remove lock reserve", "error": str(e)}
 
 
 
