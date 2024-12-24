@@ -723,17 +723,19 @@ def add_lock_reserve(reserve: LockReserveCreate, db: Session = Depends(get_db)):
 
 @app.put("/api/lock-reserves/{reserve_id}", response_model=dict)
 def remove_lock_reserve(reserve_id: int, update: LockReserveUpdate, db: Session = Depends(get_db)):
-    """
-    Remove a lock reserve (soft delete).
-    """
-    reserve = db.query(LockReserve).filter(LockReserve.id == reserve_id).first()
-    if not reserve:
-        raise HTTPException(status_code=404, detail="Lock reserve not found")
+    try: 
+        """
+        Remove a lock reserve (soft delete).
+        """
+        reserve = db.query(LockReserve).filter(LockReserve.id == reserve_id).first()
+        if not reserve:
+            raise HTTPException(status_code=404, detail="Lock reserve not found")
 
-    reserve.deleted_at = update.deleted_at
-    db.commit()
-    return {"message": "Lock reserve removed successfully", "reserve": reserve}
-
+        reserve.deleted_at = update.deleted_at
+        db.commit()
+        return {"message": "Lock reserve removed successfully", "reserve": reserve}
+    except Exception as e:
+        raise HTTPException(status_code=200, detail=str(e))
 
 
 
