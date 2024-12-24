@@ -45,7 +45,7 @@ const LockReservesTable = ({ data, onAddReserve, onRemoveReserve, uploadFiles , 
   const [historyData, setHistoryData] = useState([]);
   const [files, setFiles] = useState([]);
 
-  const BASE_URL = "http://37.27.181.156:18992/uploads/";
+  const BASE_URL = "https://backoffice.rnt.co.th/uploads/";
 
   // const BASE_URL = "http://localhost:4000/uploads/";
 

@@ -23,7 +23,7 @@ import {
   Link,
 } from "@chakra-ui/react";
 
-const BASE_URL = "http://37.27.181.156:18992/uploads/";
+const BASE_URL = "https://backoffice.rnt.co.th/uploads/";
 
 // Function to check if the file is an image
 const isImage = (filename) => {
