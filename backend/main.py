@@ -723,20 +723,22 @@ def add_lock_reserve(reserve: LockReserveCreate, db: Session = Depends(get_db)):
 
 @app.put("/api/lock-reserves/{reserve_id}", response_model=dict)
 def remove_lock_reserve(reserve_id: int, update: LockReserveUpdate, db: Session = Depends(get_db)):
-    try: 
-        """
-        Remove a lock reserve (soft delete).
-        """
+    """
+    Remove a lock reserve (soft delete).
+    """
+    try:
         reserve = db.query(LockReserve).filter(LockReserve.id == reserve_id).first()
         if not reserve:
             raise HTTPException(status_code=404, detail="Lock reserve not found")
 
-        reserve.deleted_at = update.deleted_at
+        # Convert `deleted_at` to a valid datetime object if it's not already
+        reserve.deleted_at = datetime.now()  # Assign current timestamp
         db.commit()
+        db.refresh(reserve)
+
         return {"message": "Lock reserve removed successfully", "reserve": reserve}
     except Exception as e:
-        return   {"message": "Failed to remove lock reserve", "error": str(e)}
-
+        raise HTTPException(status_code=500, detail=f"Failed to remove lock reserve: {str(e)}")
 
 
 class LockReserveAttachmentBase(BaseModel):
