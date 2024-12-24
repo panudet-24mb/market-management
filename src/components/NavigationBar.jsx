@@ -57,6 +57,9 @@ const NavigationBar = () => {
         <Button variant="ghost" color="white" _hover={{ bg: hoverBg }} onClick={() => navigate('/meters')}>
           Meters
         </Button>
+        <Button variant="ghost" color="white" _hover={{ bg: hoverBg }} onClick={() => navigate('/reserves')}>
+          Reserve
+        </Button>
       </HStack>
 
       {/* User Actions */}

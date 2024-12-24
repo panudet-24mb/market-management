@@ -88,6 +88,7 @@ class Lock(Base):
     lock_contracts = relationship("LockHasContract", back_populates="lock")
     zone_id = Column(Integer, ForeignKey("zones.id"))
     zone = relationship("Zone", back_populates="locks")
+    lock_reserves = relationship("LockReserve", back_populates="lock")  
 
 # Contract Model
 class Contract(Base):
@@ -156,3 +157,55 @@ class MeterUsage(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     deleted_at = Column(DateTime, nullable=True)
+
+
+
+class LockReserve(Base):
+    __tablename__ = "lock_reserves"
+
+    id = Column(Integer, primary_key=True, index=True)
+    lock_id = Column(Integer, ForeignKey("locks.id"), nullable=False) 
+    status = Column(String, nullable=True)
+    contract_name = Column(String, nullable=True)
+    contract_type = Column(String, nullable=True)
+    contract_number = Column(String, nullable=True)
+    contract_note = Column(Text, nullable=True)
+    client_id = Column(Integer, nullable=True)
+    company_id = Column(Integer, nullable=True)
+    deposit = Column(DECIMAL, nullable=True)
+    advance = Column(DECIMAL, nullable=True)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+    deleted_at = Column(TIMESTAMP, nullable=True)
+
+    #relation
+    lock = relationship("Lock", back_populates="lock_reserves")
+    attachments = relationship("LockReserveAttachment", back_populates="lock_reserve")
+
+class LockReserveAttachment(Base):
+    __tablename__ = "lock_reserves_has_attachments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    lock_reserve_id = Column(Integer, ForeignKey("lock_reserves.id"), nullable=False)
+    filename = Column(String, nullable=False)
+    path = Column(String, nullable=False)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+    deleted_at = Column(TIMESTAMP, nullable=True)
+
+    # Relationships
+    lock_reserve = relationship("LockReserve", back_populates="attachments")
+
+
+class PreCalling(Base):
+    __tablename__ = "pre_calling"
+    id = Column(Integer, primary_key=True, index=True)
+    call_number = Column(String, nullable=False)
+    status = Column(String, nullable=True)
+    client_id = Column(Integer, nullable=False)
+    company_id = Column(Integer, nullable=True)
+    note = Column(Text, nullable=True)
+    created_by = Column(Integer, nullable=False)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+    deleted_at = Column(TIMESTAMP, nullable=True)

@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload
 from typing import List
 from fastapi.staticfiles import StaticFiles
 from database import SessionLocal, engine
-from models import Base , Tenant, Lock, Contract, Document, Bill, Zone ,LockHasContract ,BindContractRequest , Meter , MeterUsage
+from models import Base , Tenant, Lock, Contract, Document, Bill, Zone ,LockHasContract ,BindContractRequest , Meter , MeterUsage ,LockReserve ,LockReserveAttachment
 from crud import (
     create_tenant, get_tenants, get_tenant_by_id,
     create_lock, get_locks,
@@ -38,8 +38,8 @@ from datetime import datetime
 from sqlalchemy import Integer, func, and_
 from sqlalchemy import extract
 from line import send_line_flex_message
-
-
+import shutil
+import uuid
 UPLOAD_DIR = "./uploads"
 
 #static files
@@ -619,6 +619,218 @@ def update_tenant_from_line(line_data: LineUpdate, db: Session = Depends(get_db)
     send_line_flex_message(tenant.line_id)
 
     return {"message": "Tenant updated successfully", "tenant": tenant}
+
+
+
+class LockReserveCreate(BaseModel):
+    lock_id: int
+    status: Optional[str] = "new"
+    contract_name: Optional[str]
+    client_id: Optional[int]
+    company_id: Optional[int]
+    deposit: Optional[float] = 0.0
+    advance: Optional[float] = 0.0
+    contract_type : Optional[str]
+    contract_number : Optional[str]
+    contract_note : Optional[str]
+
+class LockReserveUpdate(BaseModel):
+    deleted_at: str
+@app.get("/api/locks-reserves")
+def read_locks_with_reserves(db: Session = Depends(get_db)):
+    """
+    Fetch locks and their associated reserves grouped by lock_id,
+    filtering out reserves where deleted_at IS NOT NULL, 
+    and include associated attachments.
+    """
+    # Query locks with joined lock reserves and their attachments
+    locks = db.query(Lock).options(
+        joinedload(Lock.lock_reserves.and_(LockReserve.deleted_at.is_(None)))
+        .joinedload(LockReserve.attachments)  # Load attachments for each reserve
+    ).order_by(Lock.id).all()
+
+    # Structure the response data
+    result = [
+        {
+            "lock_id": lock.id,
+            "lock_name": lock.lock_name,
+            "lock_reserves": [
+                {
+                    "id": reserve.id,
+                    "status": reserve.status,
+                    "contract_name": reserve.contract_name,
+                    "client_id": reserve.client_id,
+                    "company_id": reserve.company_id,
+                    "created_at": reserve.created_at,
+                    "deposit": reserve.deposit,
+                    "advance": reserve.advance,
+                    "contract_number": reserve.contract_number,
+                    "contract_note": reserve.contract_note,
+                    "attachments": [
+                        {
+                            "id": attachment.id,
+                            "filename": attachment.filename,
+                            "path": attachment.path,
+                            "created_at": attachment.created_at,
+                        }
+                        for attachment in reserve.attachments
+                    ],
+                }
+                for reserve in lock.lock_reserves
+            ]
+        }
+        for lock in locks
+    ]
+
+    return {"data": result}
+
+@app.post("/api/lock-reserves", response_model=dict)
+def add_lock_reserve(reserve: LockReserveCreate, db: Session = Depends(get_db)):
+    """
+    Add a new lock reserve.
+    """
+    new_reserve = LockReserve(
+        lock_id=reserve.lock_id,
+        status=reserve.status,
+        contract_name=reserve.contract_name,
+        client_id=reserve.client_id,
+        company_id=reserve.company_id,
+        deposit=reserve.deposit,
+        advance=reserve.advance,
+        contract_type=reserve.contract_type,
+        contract_number=reserve.contract_number,
+        contract_note=reserve.contract_note,
+    )
+    db.add(new_reserve)
+    db.commit()
+    db.refresh(new_reserve)
+    return {
+        "message": "Lock reserve added successfully",
+        "id": new_reserve.id,
+        "reserve": {
+            "lock_id": new_reserve.lock_id,
+            "status": new_reserve.status,
+            "contract_name": new_reserve.contract_name,
+            "client_id": new_reserve.client_id,
+            "company_id": new_reserve.company_id,
+            "deposit": new_reserve.deposit,
+            "advance": new_reserve.advance,
+            "contract_type": new_reserve.contract_type,
+            "contract_number": new_reserve.contract_number,
+            "contract_note": new_reserve.contract_note,
+            "created_at": new_reserve.created_at,
+        },
+    }
+
+
+@app.put("/api/lock-reserves/{reserve_id}", response_model=dict)
+def remove_lock_reserve(reserve_id: int, update: LockReserveUpdate, db: Session = Depends(get_db)):
+    """
+    Remove a lock reserve (soft delete).
+    """
+    reserve = db.query(LockReserve).filter(LockReserve.id == reserve_id).first()
+    if not reserve:
+        raise HTTPException(status_code=404, detail="Lock reserve not found")
+
+    reserve.deleted_at = update.deleted_at
+    db.commit()
+    return {"message": "Lock reserve removed successfully", "reserve": reserve}
+
+
+
+
+class LockReserveAttachmentBase(BaseModel):
+    filename: str
+    path: str
+
+
+class LockReserveAttachmentCreate(LockReserveAttachmentBase):
+    pass
+
+
+
+
+
+
+
+
+
+@app.post("/api/lock-reserves/{lock_reserve_id}/attachments")
+def upload_attachment(
+    lock_reserve_id: int,
+    file: UploadFile,
+    db: Session = Depends(get_db)
+):
+    # Generate a unique filename
+    file_extension = os.path.splitext(file.filename)[1]
+    unique_filename = f"{uuid.uuid4().hex}{file_extension}"
+    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+
+    # Save the file to the server
+    with open(file_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    # Add file metadata to the database
+    attachment = LockReserveAttachment(
+        lock_reserve_id=lock_reserve_id,
+        filename=unique_filename,
+        path=file_path,
+    )
+    db.add(attachment)
+    db.commit()
+    db.refresh(attachment)
+
+    return attachment
+
+
+@app.get("/api/locks-reserves/{lock_id}/history")
+def read_locks_with_reserves(lock_id: int, db: Session = Depends(get_db)):
+    """
+    Fetch lock and its associated reserves grouped by lock_id,
+    filtering out reserves where deleted_at IS NOT NULL, 
+    and include associated attachments.
+    """
+    # Query the lock with the specified lock_id
+    lock = db.query(Lock).options(
+        joinedload(Lock.lock_reserves)
+        .joinedload(LockReserve.attachments)  # Load attachments for each reserve
+    ).filter(Lock.id == lock_id).first()
+
+    if not lock:
+        return {"message": f"Lock with ID {lock_id} not found", "data": []}
+
+    # Structure the response data for the specific lock
+    result = {
+        "lock_id": lock.id,
+        "lock_name": lock.lock_name,
+        "lock_reserves": [
+            {
+                "id": reserve.id,
+                "status": reserve.status,
+                "contract_name": reserve.contract_name,
+                "client_id": reserve.client_id,
+                "company_id": reserve.company_id,
+                "created_at": reserve.created_at,
+                "deposit": reserve.deposit,
+                "advance": reserve.advance,
+                "contract_number": reserve.contract_number,
+                "contract_note": reserve.contract_note,
+                "attachments": [
+                    {
+                        "id": attachment.id,
+                        "filename": attachment.filename,
+                        "path": f"http://37.27.181.156:18992/uploads/{attachment.filename}",
+                        "created_at": attachment.created_at,
+                    }
+                    for attachment in reserve.attachments
+                ],
+            }
+            for reserve in lock.lock_reserves
+        ]
+    }
+
+    return {"data": result}
+
 
 
 if __name__ == "__main__":

@@ -121,3 +121,46 @@ CREATE TABLE contracts (
     deposit decimal,
     note TEXT
 );
+
+
+CREATE TABLE lock_reserves (
+    id SERIAL PRIMARY KEY,  
+    lock_id INT,
+    status VARCHAR(255),
+    contract_name VARCHAR(255),
+    contract_type VARCHAR(255),
+    contract_number VARCHAR(255),
+    contract_note TEXT,
+    deposit decimal,
+    advance decimal,
+    client_id INT,
+    company_id INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP
+)
+
+CREATE TABLE lock_reserves_has_attachments (
+    id SERIAL PRIMARY KEY,  
+    lock_reserve_id INT,
+    filename VARCHAR(255) NOT NULL,
+    path VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP
+)
+
+CREATE TABLE pre_calling(
+    id SERIAL PRIMARY KEY,
+    call_number VARCHAR(255),
+    status VARCHAR(255),
+    client_id INT,
+    company_id INT,
+    note TEXT,
+    created_by  INT, 
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP
+)
+
+

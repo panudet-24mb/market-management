@@ -18,6 +18,7 @@ import TenantDetailPage from '../pages/Tenant/TenentDetailPage.jsx';
 import MeterManagementPage from '../pages/Meter/MeterManagementPage.jsx';
 import LiffRegisterPage from '../pages/LiffRegister';
 import Watcher from '../pages/MeterWatcher/Watcher';
+import LockReservesPage from '../pages/Reserve/LockReservesPage';
 // import NavigationBar from './src/components/NavigationBar.jsx';
 
 import PrivateRoute from "./PrivateRoute.jsx";
@@ -47,6 +48,7 @@ const AppRoutes = () => {
           <Route exact path='/tenants/:id' element={<TenantDetailPage />} />
           <Route exact path='/meters' element={<MeterManagementPage />} />
           <Route exact path='/settings' element={<SettingsPage />} />
+          <Route exact path='/reserves' element={<LockReservesPage />} />
 
         </Route>
       </Routes>
