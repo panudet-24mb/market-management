@@ -626,8 +626,6 @@ class LockReserveCreate(BaseModel):
     lock_id: int
     status: Optional[str] = "new"
     contract_name: Optional[str]
-    client_id: Optional[int]
-    company_id: Optional[int]
     deposit: Optional[float] = 0.0
     advance: Optional[float] = 0.0
     contract_type : Optional[str]
