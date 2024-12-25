@@ -23,33 +23,25 @@ import {
   ModalCloseButton,
   ModalBody,
   ModalFooter,
-  FormControl,
-  FormLabel,
-  Textarea,
+  Text,
+  HStack,
 } from '@chakra-ui/react';
+import { FaLine } from 'react-icons/fa6';
 import { useNavigate } from 'react-router-dom';
+import QRCode from 'react-qr-code';
 import tenantService from '../../services/tenentService';
 
+const LIFF_URL = "https://liff.line.me/2006705987-JqM5Ky0Q";
+
 const TenantListPage = () => {
-  const [loadingApi, setLoadingApi] = useState(false)
   const [tenants, setTenants] = useState([]);
   const [filteredTenants, setFilteredTenants] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const [newTenant, setNewTenant] = useState({
-    prefix: '',
-    first_name: '',
-    last_name: '',
-    nick_name: '',
-    contact: '',
-    phone: '',
-    address: '',
-    line_id: '',
-    note: '',
-  });
-
+  const [qrCodeData, setQrCodeData] = useState('');
+  const [selectedTenant, setSelectedTenant] = useState(null); // Store selected tenant for modal
   const toast = useToast();
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const { isOpen: isQrModalOpen, onOpen: onQrModalOpen, onClose: onQrModalClose } = useDisclosure();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -87,49 +79,11 @@ const TenantListPage = () => {
     setFilteredTenants(filtered);
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewTenant((prevTenant) => ({ ...prevTenant, [name]: value }));
-  };
-
-  const handleCreateTenant = async () => {
-    setLoadingApi(true)
-    try {
-      const createdTenant = await tenantService.createTenant(newTenant);
-      setTenants((prevTenants) => [...prevTenants, createdTenant]);
-      setFilteredTenants((prevTenants) => [...prevTenants, createdTenant]);
-
-      toast({
-        title: 'Tenant created successfully',
-        description: `Tenant ${createdTenant.first_name} ${createdTenant.last_name} has been added.`,
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
-
-      setNewTenant({
-        prefix: '',
-        first_name: '',
-        last_name: '',
-        nick_name: '',
-        contact: '',
-        phone: '',
-        address: '',
-        line_id: '',
-        note: '',
-      });
-      setLoadingApi(false)
-      onClose();
-    } catch (error) {
-      setLoadingApi(false)
-      toast({
-        title: 'Error creating tenant',
-        description: error.message || 'An error occurred while creating the tenant.',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
-    }
+  const generateQRCode = (tenant) => {
+    const qrUrl = `${LIFF_URL}?customer_code=${tenant.code}`;
+    setQrCodeData(qrUrl);
+    setSelectedTenant(tenant); // Store selected tenant for modal
+    onQrModalOpen();
   };
 
   if (loading) {
@@ -152,9 +106,6 @@ const TenantListPage = () => {
           value={searchQuery}
           onChange={handleSearch}
         />
-        <Button colorScheme="teal" onClick={onOpen}>
-          Add New Tenant
-        </Button>
       </Stack>
 
       <Table variant="striped">
@@ -167,6 +118,7 @@ const TenantListPage = () => {
             <Th>First Name</Th>
             <Th>Last Name</Th>
             <Th>Phone</Th>
+            <Th>LINE</Th>
             <Th>Actions</Th>
           </Tr>
         </Thead>
@@ -188,6 +140,29 @@ const TenantListPage = () => {
               <Td>{tenant.last_name}</Td>
               <Td>{tenant.phone}</Td>
               <Td>
+                {tenant.line_register ? (
+                  <HStack>
+                    <FaLine size="24px" color="green" />
+                    <Avatar
+                      size="sm"
+                      src={tenant.line_img || 'https://via.placeholder.com/150'}
+                      name={tenant.line_name || 'LINE User'}
+                    />
+                    <Text>{tenant.line_name || 'LINE User'}</Text>
+                  </HStack>
+                ) : (
+                  <Text color="gray.500">Not Registered</Text>
+                )}
+              </Td>
+              <Td>
+                <Button
+                  colorScheme="green"
+                  size="sm"
+                  onClick={() => generateQRCode(tenant)}
+                  mr={2}
+                >
+                  {tenant.line_register ? 'Update LINE' : 'Generate QR'}
+                </Button>
                 <Button
                   colorScheme="blue"
                   size="sm"
@@ -201,95 +176,26 @@ const TenantListPage = () => {
         </Tbody>
       </Table>
 
-      {/* Create Tenant Modal */}
-      <Modal isOpen={isOpen} onClose={onClose}>
+      {/* QR Code Modal */}
+      <Modal isOpen={isQrModalOpen} onClose={onQrModalClose}>
         <ModalOverlay />
         <ModalContent>
-          <ModalHeader>Create New Tenant</ModalHeader>
+          <ModalHeader textAlign="center">
+            QR Code for {selectedTenant?.first_name} {selectedTenant?.last_name}
+          </ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            <Stack spacing={4}>
-              <FormControl>
-                <FormLabel>Prefix</FormLabel>
-                <Input
-                  name="prefix"
-                  value={newTenant.prefix}
-                  onChange={handleInputChange}
-                  placeholder="Enter prefix (e.g., Mr, Mrs)"
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel>First Name</FormLabel>
-                <Input
-                  name="first_name"
-                  value={newTenant.first_name}
-                  onChange={handleInputChange}
-                  placeholder="Enter first name"
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel>Last Name</FormLabel>
-                <Input
-                  name="last_name"
-                  value={newTenant.last_name}
-                  onChange={handleInputChange}
-                  placeholder="Enter last name"
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel>Nickname</FormLabel>
-                <Input
-                  name="nick_name"
-                  value={newTenant.nick_name}
-                  onChange={handleInputChange}
-                  placeholder="Enter nickname"
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel>Phone</FormLabel>
-                <Input
-                  name="phone"
-                  value={newTenant.phone}
-                  onChange={handleInputChange}
-                  placeholder="Enter phone number"
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel>Address</FormLabel>
-                <Input
-                  name="address"
-                  value={newTenant.address}
-                  onChange={handleInputChange}
-                  placeholder="Enter address"
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel>Line ID</FormLabel>
-                <Input
-                  name="line_id"
-                  value={newTenant.line_id}
-                  onChange={handleInputChange}
-                  placeholder="Enter Line ID"
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel>Note</FormLabel>
-                <Textarea
-                  name="note"
-                  value={newTenant.note}
-                  onChange={handleInputChange}
-                  placeholder="Enter note"
-                />
-              </FormControl>
-            </Stack>
+            <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center">
+              <QRCode value={qrCodeData} size={256} />
+              <Text mt={4} fontSize="lg" fontWeight="bold">
+                {selectedTenant?.first_name} {selectedTenant?.last_name}
+              </Text>
+              <Text mt={2}>Customer Code: {selectedTenant?.code}</Text>
+              <Text>Phone: {selectedTenant?.phone}</Text>
+            </Box>
           </ModalBody>
-          <ModalFooter>
-            <Button colorScheme="teal" onClick={handleCreateTenant} disabled={loadingApi} >
-              Create Tenant
-            </Button>
-            <Button onClick={onClose} ml={3}>
-              Cancel
-            </Button>
+          <ModalFooter justifyContent="center">
+            <Button onClick={onQrModalClose}>Close</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>

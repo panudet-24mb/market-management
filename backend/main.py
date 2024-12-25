@@ -885,6 +885,7 @@ def update_tenant_from_line(line_data: LineUpdate, db: Session = Depends(get_db)
         raise HTTPException(status_code=404, detail="Tenant not found with the provided customer_code.")
     
     # Update tenant fields
+    tenant.profile_image = line_data.line_img
     tenant.line_img = line_data.line_img
     tenant.line_name = line_data.line_name
     tenant.line_id = line_data.line_id

@@ -33,12 +33,15 @@ const NavigationBar = () => {
       <HStack spacing={3} cursor="pointer" onClick={() => navigate('/')}>
         <Icon as={FaBuilding} boxSize={6} color="white" />
         <Heading as="h1" size="md" color="white">
-        AppName : SpaceDee - Client : GoGo Market V.0.0.01
+       SpaceDee - Client : GoGo Market V.0.0.4
         </Heading>
       </HStack>
 
       {/* Navigation Links */}
       <HStack spacing={6} display={{ base: 'none', md: 'flex' }}>
+      <Button variant="ghost" color="white" _hover={{ bg: hoverBg }} onClick={() => navigate('/')}>
+          Dashboard
+        </Button>
         <Button variant="ghost" color="white" _hover={{ bg: hoverBg }} onClick={() => navigate('/zones')}>
           Zones
         </Button>
