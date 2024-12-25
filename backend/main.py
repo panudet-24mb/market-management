@@ -312,6 +312,88 @@ def get_contracts_by_tenant_id(tenant_id: int, db: Session = Depends(get_db)):
 
 
 
+# @app.get("/api/locks-with-contracts", response_model=List[dict])
+# def get_locks_with_contracts(db: Session = Depends(get_db)):
+#     # Subquery to select the latest active contract or NULL for each lock
+#     subquery = (
+#         db.query(
+#             LockHasContract.lock_id,
+#             Contract.id.label("contract_id"),
+#             Contract.contract_name,
+#             Contract.contract_number,
+#             Contract.start_date,
+#             Contract.end_date,
+#             Tenant.first_name.label("tenant_first_name"),
+#             Tenant.last_name.label("tenant_last_name"),
+#             Tenant.profile_image,
+
+#         )
+#         .join(Contract, LockHasContract.contract_id == Contract.id, isouter=True)
+#         .join(Tenant, Contract.tenant_id == Tenant.id, isouter=True)
+#         .filter(
+#             and_(
+#                 LockHasContract.deleted_at.is_(None),  # Exclude deleted contracts
+#                 LockHasContract.status == "active"    # Only include active contracts
+#             )
+#         )
+#         .subquery()
+#     )
+
+#     # Main query to fetch locks and associated contract data
+#     query = (
+#         db.query(
+#             Lock.id.label("lock_id"),
+#             Lock.lock_name,
+#             Lock.lock_number,
+#             Lock.zone_id,
+#             Lock.size,
+#             Lock.active,
+#             subquery.c.contract_id,
+#             subquery.c.contract_number,
+#             subquery.c.contract_name,
+#             subquery.c.start_date,
+#             subquery.c.end_date,
+#             subquery.c.tenant_first_name,
+#             subquery.c.tenant_last_name,
+#             subquery.c.profile_image,
+#         )
+#         .outerjoin(subquery, Lock.id == subquery.c.lock_id)  # Join locks with subquery
+#         .order_by(Lock.id.desc())
+#     ).all()
+
+#     # Format the result to include contract expiry calculation
+#     result = []
+#     for lock in query:
+#         days_left = (
+#             (lock.end_date - datetime.utcnow().date()).days
+#             if lock.end_date
+#             else None
+#         )
+#         result.append({
+#             "lock_id": lock.lock_id,
+#             "lock_name": lock.lock_name,
+#             "lock_number": lock.lock_number,
+#             "zone_id": lock.zone_id,
+#             "size": lock.size,
+#             "active": lock.active,
+#             "contract_status": "active" if lock.contract_id else None,
+#             "tenant_name": f"{lock.tenant_first_name} {lock.tenant_last_name}" if lock.tenant_first_name else None,
+#             "days_left": days_left,
+#             "is_near_expiry": days_left is not None and days_left <= 30,
+#             "start_date": lock.start_date,
+#             "end_date": lock.end_date,
+#             "contract_number": lock.contract_number,
+#             "profile_image": lock.profile_image,
+#             "contract_id": lock.contract_id,
+#             "contract_name": lock.contract_name
+         
+#         })
+
+#     return result
+
+
+from sqlalchemy.orm import joinedload
+
 @app.get("/api/locks-with-contracts", response_model=List[dict])
 def get_locks_with_contracts(db: Session = Depends(get_db)):
     # Subquery to select the latest active contract or NULL for each lock
@@ -326,7 +408,6 @@ def get_locks_with_contracts(db: Session = Depends(get_db)):
             Tenant.first_name.label("tenant_first_name"),
             Tenant.last_name.label("tenant_last_name"),
             Tenant.profile_image,
-
         )
         .join(Contract, LockHasContract.contract_id == Contract.id, isouter=True)
         .join(Tenant, Contract.tenant_id == Tenant.id, isouter=True)
@@ -339,7 +420,7 @@ def get_locks_with_contracts(db: Session = Depends(get_db)):
         .subquery()
     )
 
-    # Main query to fetch locks and associated contract data
+    # Main query to fetch locks, associated contract data, and lock reserves
     query = (
         db.query(
             Lock.id.label("lock_id"),
@@ -356,40 +437,62 @@ def get_locks_with_contracts(db: Session = Depends(get_db)):
             subquery.c.tenant_first_name,
             subquery.c.tenant_last_name,
             subquery.c.profile_image,
+            LockReserve.id.label("reserve_id"),
+            LockReserve.status.label("reserve_status"),
+            LockReserve.contract_name.label("reserve_contract_name"),
+            LockReserve.contract_number.label("reserve_contract_number"),
+            LockReserve.deposit.label("reserve_deposit"),
+            LockReserve.advance.label("reserve_advance"),
+            LockReserve.created_at.label("reserve_created_at"),
+            LockReserve.contract_note.label("reserve_contract_note"),
         )
         .outerjoin(subquery, Lock.id == subquery.c.lock_id)  # Join locks with subquery
+        .outerjoin(LockReserve, and_(Lock.id == LockReserve.lock_id, LockReserve.deleted_at.is_(None)))  # Join locks with LockReserve
         .order_by(Lock.id.desc())
     ).all()
 
-    # Format the result to include contract expiry calculation
-    result = []
+    # Format the result
+    result = {}
     for lock in query:
-        days_left = (
-            (lock.end_date - datetime.utcnow().date()).days
-            if lock.end_date
-            else None
-        )
-        result.append({
-            "lock_id": lock.lock_id,
-            "lock_name": lock.lock_name,
-            "lock_number": lock.lock_number,
-            "zone_id": lock.zone_id,
-            "size": lock.size,
-            "active": lock.active,
-            "contract_status": "active" if lock.contract_id else None,
-            "tenant_name": f"{lock.tenant_first_name} {lock.tenant_last_name}" if lock.tenant_first_name else None,
-            "days_left": days_left,
-            "is_near_expiry": days_left is not None and days_left <= 30,
-            "start_date": lock.start_date,
-            "end_date": lock.end_date,
-            "contract_number": lock.contract_number,
-            "profile_image": lock.profile_image,
-            "contract_id": lock.contract_id,
-            "contract_name": lock.contract_name
-         
-        })
+        lock_id = lock.lock_id
+        if lock_id not in result:
+            result[lock_id] = {
+                "lock_id": lock.lock_id,
+                "lock_name": lock.lock_name,
+                "lock_number": lock.lock_number,
+                "zone_id": lock.zone_id,
+                "size": lock.size,
+                "active": lock.active,
+                "contract_status": "active" if lock.contract_id else None,
+                "tenant_name": f"{lock.tenant_first_name} {lock.tenant_last_name}" if lock.tenant_first_name else None,
+                "days_left": (
+                    (lock.end_date - datetime.utcnow().date()).days
+                    if lock.end_date
+                    else None
+                ),
+                "is_near_expiry": lock.end_date is not None and (lock.end_date - datetime.utcnow().date()).days <= 30,
+                "start_date": lock.start_date,
+                "end_date": lock.end_date,
+                "contract_number": lock.contract_number,
+                "profile_image": lock.profile_image,
+                "contract_id": lock.contract_id,
+                "contract_name": lock.contract_name,
+                "lock_reserves": []
+            }
+        if lock.reserve_id:
+            result[lock_id]["lock_reserves"].append({
+                "reserve_id": lock.reserve_id,
+                "status": lock.reserve_status,
+                "contract_name": lock.reserve_contract_name,
+                "contract_number": lock.reserve_contract_number,
+                "deposit": lock.reserve_deposit,
+                "advance": lock.reserve_advance,
+                "created_at": lock.reserve_created_at,
+                "contract_note": lock.reserve_contract_note,
+            })
 
-    return result
+    return list(result.values())
+
 
 
 @app.get("/api/contracts/non_expired")

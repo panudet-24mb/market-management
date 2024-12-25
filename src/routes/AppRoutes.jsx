@@ -19,6 +19,7 @@ import MeterManagementPage from '../pages/Meter/MeterManagementPage.jsx';
 import LiffRegisterPage from '../pages/LiffRegister';
 import Watcher from '../pages/MeterWatcher/Watcher';
 import LockReservesPage from '../pages/Reserve/LockReservesPage';
+import CallCenterPage from '../pages/CallCenter/CallCenterPage';
 // import NavigationBar from './src/components/NavigationBar.jsx';
 
 import PrivateRoute from "./PrivateRoute.jsx";
@@ -49,6 +50,7 @@ const AppRoutes = () => {
           <Route exact path='/meters' element={<MeterManagementPage />} />
           <Route exact path='/settings' element={<SettingsPage />} />
           <Route exact path='/reserves' element={<LockReservesPage />} />
+          <Route exact path='/call-center' element={<CallCenterPage />} />
 
         </Route>
       </Routes>

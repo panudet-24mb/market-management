@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Table,
   Thead,
@@ -18,19 +18,20 @@ import {
   AlertDialogHeader,
   AlertDialogContent,
   AlertDialogOverlay,
-} from '@chakra-ui/react';
-import { CheckCircleIcon, WarningIcon, TimeIcon, ViewIcon } from '@chakra-ui/icons';
-import contractService from '../services/contractService';
+  Box,
+  VStack,
+  Text,
+} from "@chakra-ui/react";
+import { CheckCircleIcon, WarningIcon, TimeIcon, ViewIcon } from "@chakra-ui/icons";
+import contractService from "../services/contractService";
 
 const LockTable = ({ displayedLocks, zones, goToDetails, onClickIconEye, fetchLocksAndZones }) => {
   const toast = useToast();
 
-  // State for the AlertDialog
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedContractId, setSelectedContractId] = useState(null);
   const cancelRef = React.useRef();
 
-  // Open and close dialog
   const openDialog = (contractId) => {
     setSelectedContractId(contractId);
     setIsDialogOpen(true);
@@ -41,19 +42,18 @@ const LockTable = ({ displayedLocks, zones, goToDetails, onClickIconEye, fetchLo
     setIsDialogOpen(false);
   };
 
-  // Cancel contract handler
   const handleCancelContract = async () => {
     try {
       if (!Number.isInteger(selectedContractId)) {
-        throw new Error('Invalid contract ID. It must be an integer.');
+        throw new Error("Invalid contract ID. It must be an integer.");
       }
 
       await contractService.cancelContract(selectedContractId);
 
       toast({
-        title: 'Contract cancelled successfully',
-        description: 'The contract has been cancelled.',
-        status: 'success',
+        title: "Contract cancelled successfully",
+        description: "The contract has been cancelled.",
+        status: "success",
         duration: 3000,
         isClosable: true,
       });
@@ -61,16 +61,11 @@ const LockTable = ({ displayedLocks, zones, goToDetails, onClickIconEye, fetchLo
       setSelectedContractId(null);
       setIsDialogOpen(false);
       fetchLocksAndZones();
-
-      // Refresh lock data
-      // if (fetchLocksAndZones) {
-      //   await fetchLocksAndZones(); // Ensure it re-fetches data
-      // }
     } catch (error) {
       toast({
-        title: 'Error cancelling contract',
-        description: error.message || 'An error occurred while cancelling the contract.',
-        status: 'error',
+        title: "Error cancelling contract",
+        description: error.message || "An error occurred while cancelling the contract.",
+        status: "error",
         duration: 3000,
         isClosable: true,
       });
@@ -86,64 +81,81 @@ const LockTable = ({ displayedLocks, zones, goToDetails, onClickIconEye, fetchLo
             <Th>Name</Th>
             <Th>Lock Number</Th>
             <Th>Zone</Th>
-            {/* <Th>Size</Th> */}
             <Th>Status</Th>
             <Th>PIC</Th>
             <Th>Tenant</Th>
-            <Th>ContractName</Th>
+            <Th>Contract Name</Th>
             <Th>Contract Number</Th>
             <Th>Start</Th>
             <Th>End</Th>
             <Th>Days Left</Th>
+            <Th>Reserve List</Th>
             <Th>Actions</Th>
           </Tr>
         </Thead>
         <Tbody>
           {displayedLocks.map((lock) => (
-            <Tr key={lock.lock_id}>
+            <Tr
+              key={lock.lock_id}
+              bg={
+                lock.contract_name
+                  ? "green.100"
+                  : lock.lock_reserves.length > 0
+                  ? "orange.100"
+                  : "transparent"
+              }
+            >
               <Td>{lock.lock_id}</Td>
               <Td>{lock.lock_name}</Td>
               <Td>{lock.lock_number}</Td>
-              <Td>{zones.find((zone) => zone.id === lock.zone_id)?.name || 'Unknown'}</Td>
-              {/* <Td>{lock.size}</Td> */}
+              <Td>{zones.find((zone) => zone.id === lock.zone_id)?.name || "Unknown"}</Td>
               <Td>
-                <Tag colorScheme={lock.active ? 'green' : 'red'}>
+                <Tag colorScheme={lock.active ? "green" : "red"}>
                   <TagLeftIcon as={lock.active ? CheckCircleIcon : WarningIcon} />
-                  {lock.active ? 'Active' : 'Inactive'}
+                  {lock.active ? "Active" : "Inactive"}
                 </Tag>
               </Td>
               <Td>
                 <Avatar
-                  name={lock.profile_image || 'U'}
-                  src={lock.profile_image && lock.profile_image !== '' ? lock.profile_image : undefined}
+                  name={lock.profile_image || "U"}
+                  src={lock.profile_image && lock.profile_image !== "" ? lock.profile_image : undefined}
                   size="sm"
                 />
               </Td>
-              <Td>{lock.tenant_name || 'No Tenant'}</Td>
+              <Td>{lock.tenant_name || "No Tenant"}</Td>
               <Td>
-                {lock.contract_name ? (
-                  <Tag colorScheme="blue">{lock.contract_name}</Tag>
-                ) : (
-                  'N/A'
-                )}
+                {lock.contract_name ? <Tag colorScheme="blue">{lock.contract_name}</Tag> : "N/A"}
               </Td>
               <Td>
-                {lock.contract_number ? (
-                  <Tag colorScheme="blue">{lock.contract_number}</Tag>
-                ) : (
-                  'N/A'
-                )}
+                {lock.contract_number ? <Tag colorScheme="blue">{lock.contract_number}</Tag> : "N/A"}
               </Td>
-              <Td>{lock.start_date || 'N/A'}</Td>
-              <Td>{lock.end_date || 'N/A'}</Td>
+              <Td>{lock.start_date || "N/A"}</Td>
+              <Td>{lock.end_date || "N/A"}</Td>
               <Td>
                 {lock.days_left !== null ? (
-                  <Tag colorScheme={lock.is_near_expiry ? 'red' : 'blue'}>
+                  <Tag colorScheme={lock.is_near_expiry ? "red" : "blue"}>
                     <TagLeftIcon as={TimeIcon} />
                     {lock.days_left} days
                   </Tag>
                 ) : (
-                  'N/A'
+                  "N/A"
+                )}
+              </Td>
+              <Td>
+                {lock.lock_reserves.length > 0 ? (
+                  <VStack align="start">
+                    {lock.lock_reserves.map((reserve) => (
+                      <Box key={reserve.reserve_id} p={2} borderWidth="1px" borderRadius="md">
+                        <Tag colorScheme="purple">{reserve.contract_name}</Tag>
+                        <Text fontSize="sm">Status: {reserve.status}</Text>
+                        <Text fontSize="sm">Created: {new Date(reserve.created_at).toLocaleString()}</Text>
+                        <Text fontSize="sm">Deposit: {reserve.deposit}</Text>
+                        <Text fontSize="sm">Advance: {reserve.advance}</Text>
+                      </Box>
+                    ))}
+                  </VStack>
+                ) : (
+                  "No Reserves"
                 )}
               </Td>
               <Td>
@@ -166,7 +178,7 @@ const LockTable = ({ displayedLocks, zones, goToDetails, onClickIconEye, fetchLo
                 <Button
                   colorScheme="yellow"
                   size="sm"
-                  onClick={() => openDialog(lock.contract_id)} // Open confirmation dialog
+                  onClick={() => openDialog(lock.contract_id)}
                   isDisabled={!lock.contract_id}
                   ml={2}
                 >
@@ -178,12 +190,7 @@ const LockTable = ({ displayedLocks, zones, goToDetails, onClickIconEye, fetchLo
         </Tbody>
       </Table>
 
-      {/* Confirmation Dialog */}
-      <AlertDialog
-        isOpen={isDialogOpen}
-        leastDestructiveRef={cancelRef}
-        onClose={closeDialog}
-      >
+      <AlertDialog isOpen={isDialogOpen} leastDestructiveRef={cancelRef} onClose={closeDialog}>
         <AlertDialogOverlay>
           <AlertDialogContent>
             <AlertDialogHeader fontSize="lg" fontWeight="bold">

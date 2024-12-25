@@ -60,6 +60,12 @@ const NavigationBar = () => {
         <Button variant="ghost" color="white" _hover={{ bg: hoverBg }} onClick={() => navigate('/reserves')}>
           Reserve
         </Button>
+
+        <Button variant="ghost" color="white" _hover={{ bg: hoverBg }} onClick={() => navigate('/call-center')}>
+          Call Center
+        </Button>
+
+
       </HStack>
 
       {/* User Actions */}
