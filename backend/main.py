@@ -40,6 +40,8 @@ from sqlalchemy import extract
 from line import send_line_flex_message
 import shutil
 import uuid
+from pathlib import Path
+from fastapi import Body
 UPLOAD_DIR = "./uploads"
 
 #static files
@@ -594,43 +596,122 @@ def get_meter_api(meter_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Meter not found")
     return meter
 
-# Meter Usages Endpoints
-@app.post("/api/meter_usages")
-def create_meter_usage_api(meter_id: int, meter_start: int, meter_end: int, note: str = None, db: Session = Depends(get_db)):
-    if meter_end < meter_start:
-        raise HTTPException(status_code=400, detail="End reading cannot be less than start reading")
+# # Meter Usages Endpoints
+# @app.post("/api/meter_usages")
+# def create_meter_usage_api(meter_id: int, meter_start: int, meter_end: int, note: str = None, db: Session = Depends(get_db)):
+#     if meter_end < meter_start:
+#         raise HTTPException(status_code=400, detail="End reading cannot be less than start reading")
 
-    month = datetime.utcnow().month
-    year = datetime.utcnow().year
+#     month = datetime.utcnow().month
+#     year = datetime.utcnow().year
 
-    if not validate_meter_usage(db, meter_id, month, year):
-        raise HTTPException(status_code=400, detail="Meter usage for this month already exists")
+#     if not validate_meter_usage(db, meter_id, month, year):
+#         raise HTTPException(status_code=400, detail="Meter usage for this month already exists")
 
-    usage_data = {
-        "meter_id": meter_id,
-        "meter_start": meter_start,
-        "meter_end": meter_end,
-        "meter_usage": meter_end - meter_start,
-        "note": note,
-    }
-    return create_meter_usage(db, usage_data)
+#     usage_data = {
+#         "meter_id": meter_id,
+#         "meter_start": meter_start,
+#         "meter_end": meter_end,
+#         "meter_usage": meter_end - meter_start,
+#         "note": note,
+#     }
+#     return create_meter_usage(db, usage_data)
 
 
-# Meter Usages Endpoints
-@app.post("/api/meter_usages")
-async def create_meter_usages_api(usage_data: List[dict], db: Session = Depends(get_db)):
+# # Meter Usages Endpoints
+
+@app.post("/api/meter_usage")
+async def create_meter_usage_api(
+    asset_tag: str,
+    meter_end: int,
+    img_path: str = None,
+    db: Session = Depends(get_db)
+):
     try:
-        for usage in usage_data:
-            if usage['meter_end'] < usage['meter_start']:
-                raise HTTPException(status_code=400, detail="End reading cannot be less than start reading")
-            usage['meter_usage'] = usage['meter_end'] - usage['meter_start']
-            create_meter_usage(db, usage)
-        return {"message": "Meter usages added successfully"}
+        # Fetch the meter ID based on the asset_tag
+        meter = db.query(Meter).filter(Meter.asset_tag == asset_tag).first()
+        if not meter:
+            raise HTTPException(status_code=404, detail="Meter with given asset tag not found")
+
+        # Get the current month and year
+        current_month = datetime.now().month
+        current_year = datetime.now().year
+
+        # Check if a record already exists for this meter in the current month
+        existing_usage = (
+            db.query(MeterUsage)
+            .filter(
+                MeterUsage.meter_id == meter.id,
+                MeterUsage.deleted_at == None,
+                extract('month', MeterUsage.created_at) == current_month,
+                extract('year', MeterUsage.created_at) == current_year
+            )
+            .first()
+        )
+
+        if existing_usage:
+            return {"message": "Meter usage for this month already exists", "usage_id": existing_usage.id}
+
+        # Get the latest meter usage for this meter
+        last_usage = (
+            db.query(MeterUsage)
+            .filter(MeterUsage.meter_id == meter.id, MeterUsage.deleted_at == None)
+            .order_by(MeterUsage.created_at.desc())
+            .first()
+        )
+
+        # Calculate meter_start from the last month's meter_end
+        meter_start = last_usage.meter_end if last_usage else 0
+
+        # Ensure the new meter_end is greater than or equal to meter_start
+        if meter_end < meter_start:
+            raise HTTPException(status_code=400, detail="End reading cannot be less than start reading")
+
+        # Calculate the meter usage for this month
+        meter_usage = meter_end - meter_start
+
+        # Create and save the new meter usage record
+        new_usage = MeterUsage(
+            meter_id=meter.id,
+            meter_start=meter_start,
+            meter_end=meter_end,
+            meter_usage=meter_usage,
+            img_path=img_path,
+            status="UNCONFIRMED",
+            date_check=datetime.now().strftime("%Y-%m-%d"),
+        )
+        db.add(new_usage)
+        db.commit()
+        db.refresh(new_usage)
+
+        return {"message": "Meter usage added successfully", "usage_id": new_usage.id}
+
+    except HTTPException as http_exc:
+        raise http_exc
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/upload_bill")
+async def upload_bill(file: UploadFile = File(...)):
+    try:
+        # Create directory based on the current year-month
+        current_date = datetime.now()
+        year_month = current_date.strftime("%Y-%m")
+        upload_path = Path(UPLOAD_DIR) / year_month
+        upload_path.mkdir(parents=True, exist_ok=True)
 
+        # Save the file
+        file_path = upload_path / file.filename
+        with open(file_path, "wb") as f:
+            f.write(await file.read())
 
+        # Return the relative file path
+        return {"filename": str(file_path.relative_to(UPLOAD_DIR))}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
+    
+    
 @app.get("/api/meter_usages/{meter_id}")
 def get_meter_usages_api(meter_id: int, db: Session = Depends(get_db)):
     
@@ -645,44 +726,139 @@ def get_meter_usages_api(meter_id: int, db: Session = Depends(get_db)):
 
     return usage  # FastAPI will handle serialization to the Pydantic model
 
-@app.get("/api/meter_usages/{meter_id}/{month}")
-def get_meter_usage_by_month(meter_id: int, month: str, db: Session = Depends(get_db)):
+# @app.get("/api/meter_usages/{meter_id}/{month}")
+# def get_meter_usage_by_month(meter_id: int, month: str, db: Session = Depends(get_db)):
+#     """
+#     Fetch meter usage for a specific meter and month.
+#     If no data exists for the month, prepare data for input.
+#     """
+#     year, month = map(int, month.split("-"))
+#     usage = db.query(MeterUsage).filter(
+#         MeterUsage.meter_id == meter_id,
+#         MeterUsage.deleted_at.is_(None),
+#         extract('year', MeterUsage.created_at) == year,
+#         extract('month', MeterUsage.created_at) == month
+#     ).first()
+
+#     if usage:
+#         # Return existing meter usage for the month
+#         return {
+#             "meter_id": usage.meter_id,
+#             "meter_start": usage.meter_start,
+#             "meter_end": usage.meter_end,
+#             "meter_usage": usage.meter_usage,
+#             "img_path": usage.img_path
+#         }
+
+#     # If no data for the selected month, provide last month's end as start
+#     latest_usage = db.query(MeterUsage).filter(
+#         MeterUsage.meter_id == meter_id,
+#         MeterUsage.deleted_at.is_(None)
+#     ).order_by(MeterUsage.created_at.desc()).first()
+
+#     return {
+#         "meter_id": meter_id,
+#         "meter_start": latest_usage.meter_end if latest_usage else 0,
+#         "meter_end": None,
+#         "meter_usage": 0,
+#         "img_path": None
+#     }
+@app.get("/api/meter_usages_month/{month}")
+def get_meter_usages(month: str, db: Session = Depends(get_db)):
     """
-    Fetch meter usage for a specific meter and month.
-    If no data exists for the month, prepare data for input.
+    Fetch meter usage data for a given month.
     """
-    year, month = map(int, month.split("-"))
-    usage = db.query(MeterUsage).filter(
-        MeterUsage.meter_id == meter_id,
-        MeterUsage.deleted_at.is_(None),
-        extract('year', MeterUsage.created_at) == year,
-        extract('month', MeterUsage.created_at) == month
-    ).first()
+    from sqlalchemy import func, and_, extract
+    from datetime import datetime
 
-    if usage:
-        # Return existing meter usage for the month
-        return {
-            "meter_id": usage.meter_id,
-            "meter_start": usage.meter_start,
-            "meter_end": usage.meter_end,
-            "meter_usage": usage.meter_usage,
-            "img_path": usage.img_path
-        }
+    # Parse month input
+    try:
+        year, month = map(int, month.split("-"))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid month format. Use YYYY-MM.")
 
-    # If no data for the selected month, provide last month's end as start
-    latest_usage = db.query(MeterUsage).filter(
-        MeterUsage.meter_id == meter_id,
-        MeterUsage.deleted_at.is_(None)
-    ).order_by(MeterUsage.created_at.desc()).first()
+    # Subquery: Last confirmed or previous meter_end per meter
+    subquery_last_end = (
+        db.query(
+            MeterUsage.meter_id,
+            func.max(MeterUsage.date_check).label("last_date_check"),
+            func.max(MeterUsage.meter_end).label("last_meter_end")
+        )
+        .filter(
+            MeterUsage.deleted_at.is_(None),
+            MeterUsage.status == "CONFIRMED"  # Only consider CONFIRMED records
+        )
+        .group_by(MeterUsage.meter_id)
+        .subquery()
+    )
 
-    return {
-        "meter_id": meter_id,
-        "meter_start": latest_usage.meter_end if latest_usage else 0,
-        "meter_end": None,
-        "meter_usage": 0,
-        "img_path": None
-    }
+    # Main query: Fetch meter data for the given month
+    query = (
+        db.query(
+            Meter,
+            MeterUsage.id.label("meter_usage_id"),
+            MeterUsage.meter_start,
+            MeterUsage.meter_end,
+            MeterUsage.meter_usage,
+            MeterUsage.img_path,
+            MeterUsage.status,
+            MeterUsage.client_id,
+            MeterUsage.company_id,
+            MeterUsage.created_by,
+            MeterUsage.confirmed_by,
+            MeterUsage.created_at,
+            MeterUsage.updated_at,
+            MeterUsage.deleted_at,
+            MeterUsage.date_check,
+            MeterUsage.note,
+            subquery_last_end.c.last_meter_end.label("default_meter_start")
+        )
+        .outerjoin(
+            MeterUsage,
+            and_(
+                Meter.id == MeterUsage.meter_id,
+                extract("year", MeterUsage.date_check) == year,
+                extract("month", MeterUsage.date_check) == month,
+                MeterUsage.deleted_at.is_(None)
+            )
+        )
+        .outerjoin(
+            subquery_last_end,
+            Meter.id == subquery_last_end.c.meter_id
+        )
+    )
 
+    # Process query results
+    results = []
+    for row in query.all():
+        meter_start = (
+            row.default_meter_start if row.status == "UNCONFIRMED" else row.meter_start
+        )
+        results.append({
+            "meter_id": row.Meter.id,
+            "meter_type": row.Meter.meter_type,
+            "meter_number": row.Meter.meter_number,
+            "meter_serial": row.Meter.meter_serial,
+            "meter_asset_tag": row.Meter.asset_tag,
+            "note": row.Meter.note,
+            "meter_start": meter_start if meter_start is not None else 0,
+            "meter_end": row.meter_end,
+            "meter_usage": row.meter_usage,
+            "img_path": row.img_path,
+            "status": row.status,
+            "client_id": row.client_id,
+            "company_id": row.company_id,
+            "created_by": row.created_by,
+            "confirmed_by": row.confirmed_by,
+            "created_at": row.created_at,
+            "updated_at": row.updated_at,
+            "deleted_at": row.deleted_at,
+            "date_check": row.date_check,
+            "meter_usage_id": row.meter_usage_id,
+            "note": row.note
+        })
+
+    return results
 
 
 @app.get("/api/tenants-find-cus-code/{customer_code}")
@@ -937,8 +1113,86 @@ def read_locks_with_reserves(lock_id: int, db: Session = Depends(get_db)):
     return {"data": result}
 
 
+# Models
+class MeterUpdateData(BaseModel):
+    meter_usage_id: Optional[int] = None
+    meter_id: Optional[int] = None
+    meter_start: int
+    meter_end: int
+    note: str
 
+
+class MeterUsageUpdate(BaseModel):
+    month: str
+    data: List[MeterUpdateData]
+
+
+@app.put("/api/meter_usages/update")
+def update_meter_usage(
+    meter_update: MeterUsageUpdate = Body(...),
+    db: Session = Depends(get_db)
+):
+    """
+    Update or create meter usages based on the provided data.
+    """
+    results = []
+    try:
+        # Iterate over the data to update or create meter usage
+        for item in meter_update.data:
+            if item.meter_usage_id:
+                # Fetch the meter usage record by ID
+                meter_usage = db.query(MeterUsage).filter(MeterUsage.id == item.meter_usage_id).first()
+
+                # If meter usage record not found, raise an error
+                if not meter_usage:
+                    raise HTTPException(status_code=404, detail=f"Meter usage ID {item.meter_usage_id} not found")
+
+                # Update the fields
+                meter_usage.meter_start = item.meter_start
+                meter_usage.meter_end = item.meter_end
+                meter_usage.meter_usage = item.meter_end - item.meter_start
+                meter_usage.note = item.note
+                meter_usage.status = "CONFIRMED"
+                meter_usage.updated_at = datetime.utcnow()
+
+            else:
+                # Create a new MeterUsage record if meter_usage_id is null
+                meter_usage = MeterUsage(
+                    meter_id=item.meter_id,
+                    meter_start=item.meter_start,
+                    meter_end=item.meter_end,
+                    meter_usage=item.meter_end - item.meter_start,
+                    note=item.note,
+                    status="CONFIRMED",
+                    date_check=f"{meter_update.month}-01",  # Assuming month format is 'YYYY-MM'
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow(),
+                )
+                db.add(meter_usage)
+
+            # Add the record details to the results
+            results.append({
+                "meter_usage_id": meter_usage.id,
+                "meter_id": meter_usage.meter_id,
+                "meter_start": meter_usage.meter_start,
+                "meter_end": meter_usage.meter_end,
+                "meter_usage": meter_usage.meter_usage,
+                "note": meter_usage.note,
+                "status": meter_usage.status,
+                "updated_at": meter_usage.updated_at,
+                "created_at": meter_usage.created_at,
+                "date_check": meter_usage.date_check,
+            })
+
+        # Commit the changes to the database
+        db.commit()
+
+    except Exception as e:
+        # Rollback in case of any error
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return {"message": "Meter usages updated successfully", "data": results}
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=4000 , workers=1)
-
+    uvicorn.run("main:app", host="0.0.0.0", port=4000, reload=True, workers=1)

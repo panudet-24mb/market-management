@@ -31,6 +31,7 @@ CREATE TABLE meters (
     meter_number VARCHAR(255) ,
     meter_serial VARCHAR(255),
     note TEXT,
+    asset_tag VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP
@@ -53,6 +54,12 @@ CREATE TABLE meter_usages (
     meter_usage INT ,
     note TEXT,
     img_path VARCHAR(255),
+    status VARCHAR(255),
+    client_id INT,
+    company_id INT,
+    created_by INT ,
+    confirmedby INT , --ID ผู้คอนเฟริมว่าใครได้ยืนยัน
+    date_check DATE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP

@@ -33,7 +33,7 @@ const NavigationBar = () => {
       <HStack spacing={3} cursor="pointer" onClick={() => navigate('/')}>
         <Icon as={FaBuilding} boxSize={6} color="white" />
         <Heading as="h1" size="md" color="white">
-          GoGo Market
+        AppName : SpaceDee - Client : GoGo Market V.0.0.01
         </Heading>
       </HStack>
 

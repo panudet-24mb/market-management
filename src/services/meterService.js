@@ -18,45 +18,16 @@ const meterService = {
       throw new Error(error.response?.data?.detail || 'Failed to fetch meter usage.');
     }
   },
-  
-   fetchMeters : async (selectedMonth) => {
+  fetchMeters: async (selectedMonth) => {
     try {
-      const data = await meterService.getMeters();
-      const initialUsage = {};
-  
-      for (const meter of data) {
-        try {
-          const usage = await meterService.getMeterUsageByMonth(meter.id, selectedMonth);
-          initialUsage[meter.id] = {
-            meter_id: meter.id,
-            meter_start: usage.meter_start,
-            meter_end: usage.meter_end,
-            meter_usage: usage.meter_usage,
-            img_path: usage.img_path,
-          };
-        } catch {
-          initialUsage[meter.id] = {
-            meter_id: meter.id,
-            meter_start: 0,
-            meter_end: 0,
-            meter_usage: 0,
-            img_path: null,
-          };
-        }
-      }
-  
-      setMeters(data);
-      setMeterUsage(initialUsage);
+      const response = await axios.get(`${API_URL}/meter_usages_month/${selectedMonth}`);
+      return response.data;
     } catch (error) {
-      toast({
-        title: 'Error fetching meters',
-        description: error.message || 'An error occurred.',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
+      console.error('Error fetching meters and usage:', error);
+      throw new Error(error.response?.data?.message || 'Failed to fetch meters and usage.');
     }
-  },  
+  },
+  
   getMeters: async () => {
     try {
       const response = await axios.get(`${API_URL}/meters`);
@@ -143,6 +114,16 @@ const meterService = {
   addMeterUsage: async (usages) => {
     try {
       const response = await axios.post(`${API_URL}/meter_usages`, usages);
+      return response.data;
+    } catch (error) {
+      console.error('Error adding meter usage:', error);
+      throw new Error(error.response?.data?.detail || 'Failed to add meter usage.');
+    }
+  },
+
+  updateMeterUsageApi: async (dataUpdate) => {
+    try {
+      const response = await axios.put(`${API_URL}/meter_usages/update`, dataUpdate);
       return response.data;
     } catch (error) {
       console.error('Error adding meter usage:', error);

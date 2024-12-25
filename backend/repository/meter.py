@@ -2,14 +2,21 @@ from sqlalchemy.orm import Session
 from models import Meter, MeterUsage
 from datetime import datetime
 from sqlalchemy import func
-
+import uuid
 # Meters
 def create_meter(db: Session, meter_data: dict):
+    # Create a Meter instance with the provided data
     meter = Meter(**meter_data)
+
+    # Generate the asset tag (e.g., using a prefix and a unique ID)
+    meter.asset_tag = f"ASSET-{uuid.uuid4().hex[:8].upper()}"  # Example logic
+
+    # Add the meter to the database session
     db.add(meter)
     db.commit()
     db.refresh(meter)
     return meter
+
 
 def get_meters(db: Session):
     return db.query(Meter).filter(Meter.deleted_at.is_(None)).all()

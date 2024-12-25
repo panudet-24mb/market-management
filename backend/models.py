@@ -139,6 +139,7 @@ class Meter(Base):
     meter_number = Column(String, nullable=False)
     meter_serial = Column(String, nullable=False, unique=True)
     note = Column(Text)
+    asset_tag = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     deleted_at = Column(DateTime, nullable=True)
@@ -154,9 +155,15 @@ class MeterUsage(Base):
     meter_usage = Column(Integer, nullable=False)
     note = Column(Text, nullable=True)
     img_path = Column(String, nullable=True)
+    status = Column(String, nullable=True)
+    client_id = Column(Integer, nullable=True)
+    company_id = Column(Integer, nullable=True)
+    created_by = Column(Integer, nullable=True)
+    confirmed_by = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     deleted_at = Column(DateTime, nullable=True)
+    date_check = Column(Date)
 
 
 

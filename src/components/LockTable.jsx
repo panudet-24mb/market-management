@@ -72,9 +72,21 @@ const LockTable = ({ displayedLocks, zones, goToDetails, onClickIconEye, fetchLo
     }
   };
 
+  const renderBgTable = (data) => {
+    if (data.days_left && data.days_left <= 60) {
+      return "red.100"
+    } else {
+      if (data.contract_number) {
+        return "green.100"
+      } else if (data.lock_reserves.length > 0) {
+        return "orange.100"
+      }
+    }
+  }
+
   return (
     <>
-      <Table variant="striped" size="sm">
+      <Table size="sm">
         <Thead>
           <Tr>
             <Th>ID</Th>
@@ -97,13 +109,7 @@ const LockTable = ({ displayedLocks, zones, goToDetails, onClickIconEye, fetchLo
           {displayedLocks.map((lock) => (
             <Tr
               key={lock.lock_id}
-              bg={
-                lock.contract_name
-                  ? "green.100"
-                  : lock.lock_reserves.length > 0
-                  ? "orange.100"
-                  : "transparent"
-              }
+              bg={renderBgTable(lock)}
             >
               <Td>{lock.lock_id}</Td>
               <Td>{lock.lock_name}</Td>
@@ -145,12 +151,15 @@ const LockTable = ({ displayedLocks, zones, goToDetails, onClickIconEye, fetchLo
                 {lock.lock_reserves.length > 0 ? (
                   <VStack align="start">
                     {lock.lock_reserves.map((reserve) => (
-                      <Box key={reserve.reserve_id} p={2} borderWidth="1px" borderRadius="md">
+                      <Box key={reserve.reserve_id} p={2} borderWidth="1px" borderRadius="md" backgroundColor={"blue.200"}>
                         <Tag colorScheme="purple">{reserve.contract_name}</Tag>
-                        <Text fontSize="sm">Status: {reserve.status}</Text>
+
+                        <Text fontSize="sm">Contract Number: {reserve.contract_number}</Text>
+                        <Text fontSize="sm">Contract Note: {reserve.contract_note}</Text>
                         <Text fontSize="sm">Created: {new Date(reserve.created_at).toLocaleString()}</Text>
-                        <Text fontSize="sm">Deposit: {reserve.deposit}</Text>
-                        <Text fontSize="sm">Advance: {reserve.advance}</Text>
+
+                        <Tag colorScheme="green">Deposit: {reserve.deposit}</Tag>
+                        <Tag colorScheme="green">Advance: {reserve.advance}</Tag>
                       </Box>
                     ))}
                   </VStack>
