@@ -71,7 +71,7 @@ const MeterManagementPage = () => {
         meter_asset_tag: meter.meter_asset_tag,
         note: meter.note,
         status: meter.status,
-        meter_usage_id : meter.meter_usage_id,
+        meter_usage_id: meter.meter_usage_id,
       }));
 
       const formattedMeterUsage = data.reduce((acc, meter) => {
@@ -84,7 +84,7 @@ const MeterManagementPage = () => {
           meter_asset_tag: meter.meter_asset_tag,
           img_path: meter.img_path,
           status: meter.status,
-          meter_usage_id : meter.meter_usage_id,
+          meter_usage_id: meter.meter_usage_id,
         };
         return acc;
       }, {});
@@ -158,7 +158,7 @@ const MeterManagementPage = () => {
   } = useDisclosure();
 
   const onChangeCheckbox = (check, obj, meterUsage) => {
-    const dataMeter = [...meterSelected]        
+    const dataMeter = [...meterSelected]
     if (check) {
       if (meterUsage.meter_end !== null && meterUsage.meter_start !== null) {
         dataMeter.push({
@@ -218,7 +218,7 @@ const MeterManagementPage = () => {
 
       try {
         const data = await meterService.updateMeterUsageApi(dataMetter)
-        
+
         setloadingSubmitMetter(false)
         fetchMeters(month);
         clearStateMeterSelected()
@@ -252,7 +252,19 @@ const MeterManagementPage = () => {
       });
     }
   }
-  
+
+  const calResultUsageTag = (data) => {
+    let result = 0
+    try {
+      if(data){
+        result = data.meter_end - data.meter_start
+      }    
+    } catch (error) {
+      return result
+    }
+    return result
+  }
+
   return (
     <Box p={6}>
       <Heading size="lg" mb={6}>
@@ -425,7 +437,7 @@ const MeterManagementPage = () => {
                               fontSize="2xl"
                               fontWeight="bold"
                             >
-                              {usage} kWh
+                              {calResultUsageTag(meterUsage[meter.id] ? meterUsage[meter.id] : null)} kWh
                             </Tag>
                           </Box>
                         </Td>
