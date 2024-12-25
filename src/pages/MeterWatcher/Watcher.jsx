@@ -10,8 +10,9 @@ import {
   useToast,
   Flex,
   Input,
+  Stack,
 } from '@chakra-ui/react';
-import Tesseract from 'tesseract.js';
+import { QrReader } from 'react-qr-reader';
 import axios from 'axios';
 
 export default function MeterReader() {
@@ -19,17 +20,16 @@ export default function MeterReader() {
   const canvasRef = useRef(null);
 
   const [snapShotUrl, setSnapShotUrl] = useState('');
-  const [fullImageFilename, setFullImageFilename] = useState('');
   const [meterReading, setMeterReading] = useState('');
   const [meterDigits, setMeterDigits] = useState(['', '', '', '', '', '']);
   const [ocrDebugText, setOcrDebugText] = useState('');
+  const [assetTag, setAssetTag] = useState('');
+  const [fullImageFilename, setFullImageFilename] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [assetTag, setAssetTag] = useState('');
 
   const toast = useToast();
 
-  // Define Region of Interest (ROI)
   const ROI = {
     top: 0.3,
     left: 0.2,
@@ -37,7 +37,6 @@ export default function MeterReader() {
     height: 0.1275,
   };
 
-  // Initialize the camera
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.setAttribute('playsinline', true);
@@ -73,14 +72,13 @@ export default function MeterReader() {
       });
 
     return () => {
-      if (videoRef.current?.srcObject) {
+      if (videoRef.current && videoRef.current.srcObject) {
         const tracks = videoRef.current.srcObject.getTracks();
         tracks.forEach((track) => track.stop());
       }
     };
   }, [toast]);
 
-  // Upload full image to server
   const uploadFullImage = async (canvas) => {
     try {
       const blob = await new Promise((resolve) => canvas.toBlob(resolve));
@@ -93,8 +91,9 @@ export default function MeterReader() {
         },
       });
 
-      setFullImageFilename(response.data.filename);
-      return response.data.filename;
+      const filename = response.data.filename;
+      setFullImageFilename(filename);
+      return filename;
     } catch (error) {
       console.error('Upload error:', error);
       toast({
@@ -103,10 +102,10 @@ export default function MeterReader() {
         status: 'error',
         isClosable: true,
       });
+      return null;
     }
   };
 
-  // Handle snapshot and OCR
   const handleSnap = async () => {
     if (!videoRef.current || !canvasRef.current) return;
 
@@ -125,9 +124,9 @@ export default function MeterReader() {
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Upload the full uncropped image
-    const fullImageName = await uploadFullImage(canvas);
-    if (!fullImageName) {
+    const fullImageFilename = await uploadFullImage(canvas);
+
+    if (!fullImageFilename) {
       setIsLoading(false);
       return;
     }
@@ -140,7 +139,6 @@ export default function MeterReader() {
     const roiImageData = ctx.getImageData(x, y, w, h);
     const roiCanvas = document.createElement('canvas');
     const roiCtx = roiCanvas.getContext('2d');
-
     roiCanvas.width = w;
     roiCanvas.height = h;
     roiCtx.putImageData(roiImageData, 0, 0);
@@ -149,28 +147,24 @@ export default function MeterReader() {
     setSnapShotUrl(roiBase64);
 
     try {
-      const result = await Tesseract.recognize(roiBase64, 'eng', {
-        logger: (m) => {
-          if (m.status === 'recognizing text') {
-            setProgress(Math.round(m.progress * 100));
-          }
-        },
-        tessedit_char_whitelist: '0123456789',
-        tessedit_pageseg_mode: 7,
+      const blob = await fetch(roiBase64).then((res) => res.blob());
+      const formData = new FormData();
+      formData.append('image', blob, `meter-roi-${Date.now()}.png`);
+
+      const response = await axios.post('https://gogo.justfordev.online/api/recognized/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      const fullText = result.data.text;
-      setOcrDebugText(fullText);
-
-      let cleanedText = fullText.replace(/\D+/g, '').padStart(6, '0').slice(-6);
-
+      const recognizedArray = response.data.recognized_array || [];
+      const cleanedText = recognizedArray.map((digit) => digit.toString()).join('');
       setMeterReading(cleanedText);
       setMeterDigits(cleanedText.split(''));
+      setOcrDebugText(JSON.stringify(response.data, null, 2));
     } catch (error) {
-      console.error('OCR error:', error);
+      console.error('OCR API error:', error);
       toast({
         title: 'OCR Failed',
-        description: error.message,
+        description: error.response?.data?.detail || 'An error occurred.',
         status: 'error',
         isClosable: true,
       });
@@ -180,25 +174,27 @@ export default function MeterReader() {
     }
   };
 
-  // Submit meter reading to API
-  const handleSubmit = async () => {
-    if (!assetTag || !meterReading || !fullImageFilename) {
-      toast({
-        title: 'Error',
-        description: 'Please provide asset tag, meter reading, and upload an image.',
-        status: 'error',
-        isClosable: true,
-      });
-      return;
-    }
+  const handleDigitChange = (index, newVal) => {
+    if (!/^\d?$/.test(newVal)) return;
+    const updated = [...meterDigits];
+    updated[index] = newVal;
+    setMeterDigits(updated);
+    setMeterReading(updated.join(''));
+  };
 
+  const handleQrRead = (result) => {
+    if (result && result.text !== assetTag) {
+      setAssetTag(result.text);
+    }
+  };
+
+  const handleSubmit = async () => {
     try {
       const response = await axios.post('https://gogo.justfordev.online/api/meter_usage', null, {
         params: {
           asset_tag: assetTag,
           meter_end: parseInt(meterReading, 10),
           img_path: fullImageFilename,
-         
         },
       });
 
@@ -208,6 +204,13 @@ export default function MeterReader() {
         status: 'success',
         isClosable: true,
       });
+
+      setMeterReading('');
+      setMeterDigits(['', '', '', '', '', '']);
+      setAssetTag('');
+      setSnapShotUrl('');
+      setOcrDebugText('');
+      setFullImageFilename('');
     } catch (error) {
       console.error('Submission error:', error);
       toast({
@@ -220,82 +223,95 @@ export default function MeterReader() {
   };
 
   return (
-    <Box w="100%" minH="100vh" bg="gray.100" py={4} px={2}>
+    <Box w="100%" minH="100vh" bg="gray.50" py={4} px={4}>
       <Center mb={4}>
-        <Heading size="md">Meter Reader</Heading>
+        <Heading size="lg" color="teal.600">
+          SpaceDee - Watcher OCR
+        </Heading>
       </Center>
 
       <Box position="relative" mb={4}>
-        <video ref={videoRef} style={{ width: '100%', height: 'auto' }} />
+        <video ref={videoRef} style={{ width: '100%', height: 'auto', borderRadius: 'md' }} />
         <Box
           position="absolute"
-          border="3px dashed red"
-          pointerEvents="none"
+          border="2px dashed red"
           top={`${ROI.top * 100}%`}
           left={`${ROI.left * 100}%`}
           width={`${ROI.width * 100}%`}
           height={`${ROI.height * 100}%`}
+          pointerEvents="none"
         />
       </Box>
 
-      <Center mb={2}>
-        <Button colorScheme="teal" onClick={handleSnap} isDisabled={isLoading}>
-          {isLoading ? 'Processing...' : 'Snap'}
+      <Center mb={4}>
+        <Button colorScheme="teal" onClick={handleSnap} isLoading={isLoading}>
+          Snap
         </Button>
       </Center>
 
+      {isLoading && (
+        <Box mx="auto" mb={4} maxW="400px">
+          <Progress value={progress} size="sm" colorScheme="teal" />
+        </Box>
+      )}
+
       {snapShotUrl && (
         <Center mb={4}>
-          <Box border="1px solid #ccc" borderRadius="md" p={2} bg="white">
-            <Text fontSize="sm" mb={2}>Snapshot Preview</Text>
-            <Image src={snapShotUrl} alt="Snapshot" maxH="200px" />
-          </Box>
+          <Image src={snapShotUrl} alt="Snapshot" maxH="200px" />
         </Center>
       )}
 
       <Center mb={4}>
-        <Flex gap={2}>
+        <Flex justify="center" gap={2}>
           {meterDigits.map((digit, index) => (
             <Input
               key={index}
-              type="text"
               textAlign="center"
               maxLength={1}
               width="3rem"
-              height="3rem"
+              height="4rem"
               fontSize="2xl"
+              fontWeight="bold"
+              border="2px solid teal"
+              borderRadius="md"
+              bg="gray.100"
               value={digit}
-              onChange={(e) => {
-                const updatedDigits = [...meterDigits];
-                updatedDigits[index] = e.target.value;
-                setMeterDigits(updatedDigits);
-                setMeterReading(updatedDigits.join(''));
-              }}
+              onChange={(e) => handleDigitChange(index, e.target.value)}
             />
           ))}
         </Flex>
       </Center>
 
-      <Box mb={4}>
-        <Input
-          placeholder="Enter Asset Tag"
-          value={assetTag}
-          onChange={(e) => setAssetTag(e.target.value)}
-          mb={2}
-        />
-        <Button colorScheme="blue" onClick={handleSubmit}>
-          Submit Meter Reading
-        </Button>
-      </Box>
+      <Center mb={4}>
+        <Text fontSize="lg" color="gray.700">
+          Meter Reading: {meterReading || '---'}
+        </Text>
+      </Center>
 
-      {ocrDebugText && (
-        <Box bg="white" p={3} borderRadius="md" boxShadow="md" maxW="600px" mx="auto">
-          <Text fontSize="sm" fontWeight="bold">Debug Info:</Text>
-          <Text fontSize="sm" whiteSpace="pre-wrap">{ocrDebugText}</Text>
-        </Box>
-      )}
+      <Stack spacing={4} align="center">
+        <Text fontSize="md" color="gray.600">
+          Asset Tag: {assetTag || '---'}
+        </Text>
+        <Button
+          colorScheme="blue"
+          onClick={handleSubmit}
+          isDisabled={!meterReading || !assetTag || isLoading}
+        >
+          Submit
+        </Button>
+      </Stack>
 
       <canvas ref={canvasRef} style={{ display: 'none' }} />
+      <QrReader
+        constraints={{ facingMode: 'environment' }}
+        onResult={(result) => result && handleQrRead(result)}
+        containerStyle={{
+          width: '0px',
+          height: '0px',
+          overflow: 'hidden',
+          position: 'absolute',
+        }}
+      />
     </Box>
   );
 }

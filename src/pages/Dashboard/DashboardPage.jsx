@@ -15,6 +15,7 @@ const DashboardPage = () => {
       <Text fontSize="lg" fontWeight="bold" mt={4}>v0.0.4</Text>
       <Text>- Add Watcher for meter reading.</Text>
       <Text>- Add  MeterSystem</Text>
+      <Text>- Watcher OCR V0.0.0.1</Text>
         <Text fontSize="lg" fontWeight="bold" mt={4}>v0.0.3</Text>
         <Text>- Implemented Line system for better communication and management.</Text>
 
