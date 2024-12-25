@@ -1119,7 +1119,7 @@ class MeterUpdateData(BaseModel):
     meter_id: Optional[int] = None
     meter_start: int
     meter_end: int
-    note: str
+    note: Optional[str] = None
 
 
 class MeterUsageUpdate(BaseModel):
