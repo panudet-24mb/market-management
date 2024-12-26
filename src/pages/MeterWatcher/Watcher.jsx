@@ -143,11 +143,11 @@ export default function MeterReader() {
     roiCanvas.height = h;
     roiCtx.putImageData(roiImageData, 0, 0);
 
-    const roiBase64 = roiCanvas.toDataURL('image/png');
+    const roiBase64 = roiCanvas.toDataURL('image/png');    
     setSnapShotUrl(roiBase64);
 
     try {
-      const blob = await fetch(roiBase64).then((res) => res.blob());
+      const blob = await fetch(roiBase64).then((res) => res.blob());      
       const formData = new FormData();
       formData.append('image', blob, `meter-roi-${Date.now()}.png`);
 

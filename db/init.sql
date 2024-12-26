@@ -171,3 +171,17 @@ CREATE TABLE pre_calling(
 )
 
 
+
+
+CREATE TABLE lock_has_meter(
+    id SERIAL PRIMARY KEY,
+    lock_id INT,
+    meter_id INT,
+    status VARCHAR(255),
+    note TEXT,
+    company_id INT,
+    client_id INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP
+)

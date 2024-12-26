@@ -5,8 +5,7 @@ import {
   FormControl,
   FormLabel,
   Input,
-  NumberInput,
-  NumberInputField,
+  Select,
   Textarea,
   Button,
   Stack,
@@ -18,12 +17,14 @@ import * as Yup from 'yup';
 import tenantService from '../../services/tenentService';
 
 const TenantSchema = Yup.object().shape({
-  firstName: Yup.string().required('First name is required'),
-  lastName: Yup.string().required('Last name is required'),
+  prefix: Yup.string().required('Prefix is required'),
+  first_name: Yup.string().required('First name is required'),
+  last_name: Yup.string().required('Last name is required'),
+  nick_name: Yup.string().required('Nickname is required'),
   contact: Yup.string().required('Contact is required'),
-  rentRate: Yup.number().min(0, 'Rent rate must be positive').required('Rent rate is required'),
-  deposit: Yup.number().min(0, 'Deposit must be positive').required('Deposit is required'),
-  advance: Yup.number().min(0, 'Advance must be positive').required('Advance is required'),
+  phone: Yup.string().required('Phone number is required'),
+  address: Yup.string().required('Address is required'),
+  line_id: Yup.string(),
   note: Yup.string(),
 });
 
@@ -35,7 +36,7 @@ const TenantCreatePage = () => {
       await tenantService.createTenant(values);
       toast({
         title: 'Tenant created successfully!',
-        description: `${values.firstName} ${values.lastName} has been added.`,
+        description: `${values.prefix} ${values.first_name} ${values.last_name} has been added.`,
         status: 'success',
         duration: 3000,
         isClosable: true,
@@ -59,12 +60,14 @@ const TenantCreatePage = () => {
       </Heading>
       <Formik
         initialValues={{
-          firstName: '',
-          lastName: '',
+          prefix: '',
+          first_name: '',
+          last_name: '',
+          nick_name: '',
           contact: '',
-          rentRate: 0,
-          deposit: 0,
-          advance: 0,
+          phone: '',
+          address: '',
+          line_id: '',
           note: '',
         }}
         validationSchema={TenantSchema}
@@ -73,28 +76,56 @@ const TenantCreatePage = () => {
         {(formik) => (
           <Form>
             <Stack spacing={4}>
-              <FormControl isInvalid={formik.touched.firstName && formik.errors.firstName}>
-                <FormLabel>First Name</FormLabel>
-                <Input
-                  name="firstName"
+              <FormControl isInvalid={formik.touched.prefix && formik.errors.prefix}>
+                <FormLabel>Prefix</FormLabel>
+                <Select
+                  name="prefix"
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
-                  value={formik.values.firstName}
-                  placeholder="Enter first name"
-                />
-                <FormErrorMessage>{formik.errors.firstName}</FormErrorMessage>
+                  value={formik.values.prefix}
+                  placeholder="Select prefix"
+                >
+                  <option value="นาย">นาย</option>
+                  <option value="นางสาว">นางสาว</option>
+                  <option value="นาง">นาง</option>
+                </Select>
+                <FormErrorMessage>{formik.errors.prefix}</FormErrorMessage>
               </FormControl>
 
-              <FormControl isInvalid={formik.touched.lastName && formik.errors.lastName}>
-                <FormLabel>Last Name</FormLabel>
+              <FormControl isInvalid={formik.touched.first_name && formik.errors.first_name}>
+                <FormLabel>First Name</FormLabel>
                 <Input
-                  name="lastName"
+                  name="first_name"
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
-                  value={formik.values.lastName}
+                  value={formik.values.first_name}
+                  placeholder="Enter first name"
+                />
+                <FormErrorMessage>{formik.errors.first_name}</FormErrorMessage>
+              </FormControl>
+
+              <FormControl isInvalid={formik.touched.last_name && formik.errors.last_name}>
+                <FormLabel>Last Name</FormLabel>
+                <Input
+                  name="last_name"
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  value={formik.values.last_name}
                   placeholder="Enter last name"
                 />
-                <FormErrorMessage>{formik.errors.lastName}</FormErrorMessage>
+                <FormErrorMessage>{formik.errors.last_name}</FormErrorMessage>
+              </FormControl>
+
+              <FormControl isInvalid={formik.touched.nick_name && formik.errors.nick_name}>
+                <FormLabel>Nickname</FormLabel>
+                <Input
+                  name="nick_name"
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  value={formik.values.nick_name}
+                  placeholder="Enter nickname"
+                />
+                <FormErrorMessage>{formik.errors.nick_name}</FormErrorMessage>
               </FormControl>
 
               <FormControl isInvalid={formik.touched.contact && formik.errors.contact}>
@@ -109,46 +140,39 @@ const TenantCreatePage = () => {
                 <FormErrorMessage>{formik.errors.contact}</FormErrorMessage>
               </FormControl>
 
-              <FormControl isInvalid={formik.touched.rentRate && formik.errors.rentRate}>
-                <FormLabel>Rent Rate (฿/month)</FormLabel>
-                <NumberInput min={0}>
-                  <NumberInputField
-                    name="rentRate"
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    value={formik.values.rentRate}
-                    placeholder="Enter rent rate"
-                  />
-                </NumberInput>
-                <FormErrorMessage>{formik.errors.rentRate}</FormErrorMessage>
+              <FormControl isInvalid={formik.touched.phone && formik.errors.phone}>
+                <FormLabel>Phone</FormLabel>
+                <Input
+                  name="phone"
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  value={formik.values.phone}
+                  placeholder="Enter phone number"
+                />
+                <FormErrorMessage>{formik.errors.phone}</FormErrorMessage>
               </FormControl>
 
-              <FormControl isInvalid={formik.touched.deposit && formik.errors.deposit}>
-                <FormLabel>Deposit (฿)</FormLabel>
-                <NumberInput min={0}>
-                  <NumberInputField
-                    name="deposit"
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    value={formik.values.deposit}
-                    placeholder="Enter deposit amount"
-                  />
-                </NumberInput>
-                <FormErrorMessage>{formik.errors.deposit}</FormErrorMessage>
+              <FormControl isInvalid={formik.touched.address && formik.errors.address}>
+                <FormLabel>Address</FormLabel>
+                <Textarea
+                  name="address"
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  value={formik.values.address}
+                  placeholder="Enter address"
+                />
+                <FormErrorMessage>{formik.errors.address}</FormErrorMessage>
               </FormControl>
 
-              <FormControl isInvalid={formik.touched.advance && formik.errors.advance}>
-                <FormLabel>Advance (฿)</FormLabel>
-                <NumberInput min={0}>
-                  <NumberInputField
-                    name="advance"
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    value={formik.values.advance}
-                    placeholder="Enter advance amount"
-                  />
-                </NumberInput>
-                <FormErrorMessage>{formik.errors.advance}</FormErrorMessage>
+              <FormControl>
+                <FormLabel>LINE ID</FormLabel>
+                <Input
+                  name="line_id"
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  value={formik.values.line_id}
+                  placeholder="Enter LINE ID (optional)"
+                />
               </FormControl>
 
               <FormControl>

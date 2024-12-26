@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload
 from typing import List
 from fastapi.staticfiles import StaticFiles
 from database import SessionLocal, engine
-from models import Base , Tenant, Lock, Contract, Document, Bill, Zone ,LockHasContract ,BindContractRequest , Meter , MeterUsage ,LockReserve ,LockReserveAttachment
+from models import Base , Tenant, Lock, Contract, Document, Bill, Zone ,LockHasContract ,BindContractRequest , Meter , MeterUsage ,LockReserve ,LockReserveAttachment , LockHasMeter
 from crud import (
     create_tenant, get_tenants, get_tenant_by_id,
     create_lock, get_locks,

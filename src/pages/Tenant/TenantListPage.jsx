@@ -30,6 +30,7 @@ import { FaLine } from 'react-icons/fa6';
 import { useNavigate } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 import tenantService from '../../services/tenentService';
+import TenantCreatePage from './TenantCreatePage'; // Import the create tenant component
 
 const LIFF_URL = "https://liff.line.me/2006705987-JqM5Ky0Q";
 
@@ -42,6 +43,11 @@ const TenantListPage = () => {
   const [selectedTenant, setSelectedTenant] = useState(null); // Store selected tenant for modal
   const toast = useToast();
   const { isOpen: isQrModalOpen, onOpen: onQrModalOpen, onClose: onQrModalClose } = useDisclosure();
+  const {
+    isOpen: isCreateModalOpen,
+    onOpen: onCreateModalOpen,
+    onClose: onCreateModalClose,
+  } = useDisclosure(); // Modal controls for tenant creation
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -86,6 +92,30 @@ const TenantListPage = () => {
     onQrModalOpen();
   };
 
+  const handleTenantCreated = async () => {
+    onCreateModalClose(); // Close the creation modal
+    try {
+      // Refresh tenant list after creation
+      const data = await tenantService.getTenants();
+      setTenants(data);
+      setFilteredTenants(data);
+      toast({
+        title: 'Tenant created successfully!',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: 'Error refreshing tenants',
+        description: error.message || 'Failed to update tenant list.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
   if (loading) {
     return (
       <Box textAlign="center" py={6}>
@@ -106,6 +136,9 @@ const TenantListPage = () => {
           value={searchQuery}
           onChange={handleSearch}
         />
+        <Button colorScheme="teal" onClick={onCreateModalOpen}>
+          Add New Tenant
+        </Button>
       </Stack>
 
       <Table variant="striped">
@@ -197,6 +230,18 @@ const TenantListPage = () => {
           <ModalFooter justifyContent="center">
             <Button onClick={onQrModalClose}>Close</Button>
           </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Create Tenant Modal */}
+      <Modal isOpen={isCreateModalOpen} onClose={onCreateModalClose} size="xl">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Create New Tenant</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <TenantCreatePage onSubmit={handleTenantCreated} />
+          </ModalBody>
         </ModalContent>
       </Modal>
     </Box>

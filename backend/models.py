@@ -89,6 +89,7 @@ class Lock(Base):
     zone_id = Column(Integer, ForeignKey("zones.id"))
     zone = relationship("Zone", back_populates="locks")
     lock_reserves = relationship("LockReserve", back_populates="lock")  
+    lock_meters = relationship("LockHasMeter", back_populates="lock")  # New relationship
 
 # Contract Model
 class Contract(Base):
@@ -143,6 +144,8 @@ class Meter(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     deleted_at = Column(DateTime, nullable=True)
+
+    meter_locks = relationship("LockHasMeter", back_populates="meter")  # New relationship
 
 
 class MeterUsage(Base):
@@ -216,3 +219,22 @@ class PreCalling(Base):
     created_at = Column(TIMESTAMP, server_default=func.now())
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
     deleted_at = Column(TIMESTAMP, nullable=True)
+
+
+class LockHasMeter(Base):
+    __tablename__ = "lock_has_meter"
+
+    id = Column(Integer, primary_key=True, index=True)
+    lock_id = Column(Integer, ForeignKey("locks.id"), nullable=False)
+    meter_id = Column(Integer, ForeignKey("meters.id"), nullable=False)
+    status = Column(String, nullable=True)
+    note = Column(Text, nullable=True)
+    company_id = Column(Integer, nullable=True)
+    client_id = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    lock = relationship("Lock", back_populates="lock_meters")
+    meter = relationship("Meter", back_populates="meter_locks")
