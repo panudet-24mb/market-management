@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends,Query
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
@@ -1314,6 +1314,257 @@ def get_available_meters(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch available meters: {str(e)}")
     
+
+# version แบบดึง lock เป็นที่ตั้ง
+# @app.get("/api/eligible-locks-for-billing")
+# def get_locks_for_billing(
+#     year: int = Query(..., description="Year for billing"),
+#     month: int = Query(..., description="Month for billing (1-12)"),
+#     db: Session = Depends(get_db),
+# ):
+#     """
+#     Fetch locks eligible for billing along with their contracts and all associated meter usage for the given month.
+#     """
+#     try:
+#         # Define date range for the given year and month
+#         first_day = date(year, month, 1)
+#         last_day = (
+#             (first_day.replace(month=month + 1, day=1) - timedelta(days=1))
+#             if month < 12
+#             else date(year, 12, 31)
+#         )
+
+#         # Query locks with associated contracts, tenants, lock_has_meter, and meter_usage
+#         query = (
+#             db.query(Lock, LockHasContract, Contract, Tenant, LockHasMeter, MeterUsage)
+#             .outerjoin(LockHasContract, and_(
+#                 Lock.id == LockHasContract.lock_id,
+#                 LockHasContract.deleted_at.is_(None),  # Ensure it's active
+#             ))
+#             .outerjoin(Contract, and_(
+#                 LockHasContract.contract_id == Contract.id,
+#                 Contract.status == "Active",
+#                 Contract.start_date <= last_day,
+#                 Contract.end_date >= first_day,
+#             ))
+#             .outerjoin(Tenant, Tenant.id == Contract.tenant_id)
+#             .outerjoin(LockHasMeter, and_(
+#                 Lock.id == LockHasMeter.lock_id,
+#                 LockHasMeter.deleted_at.is_(None),  # Ensure it's active
+#             ))
+#             .outerjoin(MeterUsage, and_(
+#                 MeterUsage.meter_id == LockHasMeter.meter_id,
+#                 MeterUsage.date_check >= first_day,
+#                 MeterUsage.date_check <= last_day,
+#                 MeterUsage.status == "CONFIRMED",
+#             ))
+#             .all()
+#         )
+
+#         # Organize data for response
+#         locks_dict = {}
+#         for lock, lock_has_contract, contract, tenant, lock_has_meter, meter_usage in query:
+#             lock_id = lock.id
+
+#             if lock_id not in locks_dict:
+#                 locks_dict[lock_id] = {
+#                     "lock_id": lock.id,
+#                     "lock_name": lock.lock_name,
+#                     "lock_number": lock.lock_number,
+#                     "zone_id": lock.zone_id,
+#                     "size": lock.size,
+#                     "lock_status": lock.status,
+#                     "active": lock.active,
+#                     "contract": {
+#                         "contract_id": contract.id if contract else None,
+#                         "contract_number": contract.contract_number if contract else None,
+#                         "contract_name": contract.contract_name if contract else None,
+#                         "start_date": contract.start_date if contract else None,
+#                         "end_date": contract.end_date if contract else None,
+#                         "rent_rate": contract.rent_rate if contract else None,
+#                         "water_rate": contract.water_rate if contract else None,
+#                         "electric_rate": contract.electric_rate if contract else None,
+#                         "tenant_name": f"{tenant.first_name} {tenant.last_name}" if tenant else None,
+#                         "tenant_contact": tenant.contact if tenant else None,
+#                         "tenant_phone": tenant.phone if tenant else None,
+#                         "tenant_address": tenant.address if tenant else None,
+#                         "tenant_line_id": tenant.line_id if tenant else None,
+#                     } if contract else None,
+#                     "meter_usages": [],  # Initialize as a list for multiple usages
+#                     "calculations": {
+#                         "total_water_bill": 0,
+#                         "total_electric_bill": 0,
+#                         "total_rent": contract.rent_rate if contract else 0,
+#                         "total_bill": contract.rent_rate if contract else 0,
+#                     },
+#                 }
+
+#             # Add meter usage details
+#             if meter_usage:
+#                 water_usage = meter_usage.meter_usage
+#                 electric_usage = meter_usage.meter_usage
+#                 water_rate = contract.water_rate if contract else 0
+#                 electric_rate = contract.electric_rate if contract else 0
+
+#                 total_water_bill = water_usage * water_rate
+#                 total_electric_bill = electric_usage * electric_rate
+
+#                 locks_dict[lock_id]["meter_usages"].append({
+#                     "meter_usage_id": meter_usage.id,
+#                     "meter_id": meter_usage.meter_id,
+#                     "meter_start": meter_usage.meter_start,
+#                     "meter_end": meter_usage.meter_end,
+#                     "meter_usage": meter_usage.meter_usage,
+#                     "date_check": meter_usage.date_check,
+#                 })
+
+#                 # Update total calculations
+#                 locks_dict[lock_id]["calculations"]["total_water_bill"] += total_water_bill
+#                 locks_dict[lock_id]["calculations"]["total_electric_bill"] += total_electric_bill
+#                 locks_dict[lock_id]["calculations"]["total_bill"] += total_water_bill + total_electric_bill
+
+#         # Convert dict to sorted list for response
+#         results = sorted(locks_dict.values(), key=lambda x: x["lock_id"])
+
+#         # Check if no eligible locks are found
+#         if not results:
+#             raise HTTPException(status_code=404, detail="No eligible locks found for billing.")
+
+#         return results
+
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+@app.get("/api/eligible-locks-for-billing")
+def get_locks_for_billing(
+    year: int = Query(..., description="Year for billing"),
+    month: int = Query(..., description="Month for billing (1-12)"),
+    db: Session = Depends(get_db),
+):
+    """
+    Fetch contracts with associated locks and meter usage for the given month,
+    ensuring rent and usage are calculated correctly based on meter type.
+    """
+    try:
+        # Define date range for the given year and month
+        first_day = date(year, month, 1)
+        last_day = (
+            (first_day.replace(month=month + 1, day=1) - timedelta(days=1))
+            if month < 12
+            else date(year, 12, 31)
+        )
+
+        # Query data from the database
+        query = (
+            db.query(Lock, Contract, Tenant, MeterUsage, Meter)
+            .outerjoin(LockHasContract, and_(
+                Lock.id == LockHasContract.lock_id,
+                LockHasContract.deleted_at.is_(None),
+            ))
+            .outerjoin(Contract, and_(
+                LockHasContract.contract_id == Contract.id,
+                Contract.status == "Active",
+                Contract.start_date <= last_day,
+                Contract.end_date >= first_day,
+            ))
+            .outerjoin(Tenant, Tenant.id == Contract.tenant_id)
+            .outerjoin(LockHasMeter, and_(
+                Lock.id == LockHasMeter.lock_id,
+                LockHasMeter.deleted_at.is_(None),
+            ))
+            .outerjoin(Meter, LockHasMeter.meter_id == Meter.id)
+            .outerjoin(MeterUsage, and_(
+                MeterUsage.meter_id == Meter.id,
+                MeterUsage.date_check >= first_day,
+                MeterUsage.date_check <= last_day,
+                MeterUsage.status == "CONFIRMED",
+            ))
+            .all()
+        )
+
+        # Organize data into contracts and related locks
+        contracts_dict = {}
+        for lock, contract, tenant, meter_usage, meter in query:
+            if not contract:
+                continue
+
+            contract_number = contract.contract_number
+            if contract_number not in contracts_dict:
+                contracts_dict[contract_number] = {
+                    "contract_number": contract_number,
+                    "contract_name": contract.contract_name,
+                    "start_date": contract.start_date,
+                    "end_date": contract.end_date,
+                    "tenant_name": f"{tenant.first_name} {tenant.last_name}" if tenant else None,
+                    "tenant_contact": tenant.contact if tenant else None,
+                    "tenant_phone": tenant.phone if tenant else None,
+                    "tenant_address": tenant.address if tenant else None,
+                    "tenant_line_id": tenant.line_id if tenant else None,
+                    "tenant_profile_image": tenant.profile_image if tenant else None,
+                    "locks": [],
+                    "meter_usages": [],
+                    "calculations": {
+                        "total_water_bill": 0,
+                        "total_electric_bill": 0,
+                        "total_rent": contract.rent_rate,  # Add rent directly
+                        "total_bill": contract.rent_rate,  # Initialize with rent
+                    },
+                }
+
+            # Add lock details
+            lock_details = {
+                "lock_id": lock.id,
+                "lock_name": lock.lock_name,
+                "lock_number": lock.lock_number,
+                "zone_id": lock.zone_id,
+                "size": lock.size,
+            }
+            if lock_details not in contracts_dict[contract_number]["locks"]:
+                contracts_dict[contract_number]["locks"].append(lock_details)
+
+            # Add meter usage details and calculate bills
+            if meter_usage and meter:
+                rate = 0
+                if meter.meter_type == "Water Meter":
+                    rate = contract.water_rate or 0
+                    contracts_dict[contract_number]["calculations"]["total_water_bill"] += meter_usage.meter_usage * rate
+                elif meter.meter_type == "Electric Meter":
+                    rate = contract.electric_rate or 0
+                    contracts_dict[contract_number]["calculations"]["total_electric_bill"] += meter_usage.meter_usage * rate
+
+                contracts_dict[contract_number]["meter_usages"].append({
+                    "lock_id": lock.id,
+                    "lock_name": lock.lock_name,
+                    "meter_usage_id": meter_usage.id,
+                    "meter_id": meter_usage.meter_id,
+                    "meter_start": meter_usage.meter_start,
+                    "meter_end": meter_usage.meter_end,
+                    "meter_usage": meter_usage.meter_usage,
+                    "date_check": meter_usage.date_check,
+                    "meter_type": meter.meter_type,
+                })
+
+        # Update total bill calculation
+        for contract_data in contracts_dict.values():
+            contract_data["calculations"]["total_bill"] += (
+                contract_data["calculations"]["total_water_bill"] +
+                contract_data["calculations"]["total_electric_bill"]
+            )
+
+        # Convert dict to sorted list for response
+        results = sorted(contracts_dict.values(), key=lambda x: x["contract_number"])
+
+        if not results:
+            raise HTTPException(status_code=404, detail="No eligible contracts found for billing.")
+
+        return results
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=4000, reload=True, workers=1)

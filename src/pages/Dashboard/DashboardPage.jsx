@@ -12,6 +12,10 @@ const DashboardPage = () => {
       <Heading size="md" mb={3}>Version Updates</Heading>
       
       <Box>
+      <Text fontSize="lg" fontWeight="bold" mt={4}>v0.0.6</Text>
+      <Text> ระบบออกบิล </Text>
+
+
       <Text fontSize="lg" fontWeight="bold" mt={4}>v0.0.5</Text>
       <Text>- Pair meter with lock for next calculate billing</Text>
 

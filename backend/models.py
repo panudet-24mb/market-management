@@ -15,21 +15,6 @@ class Document(Base):
 
     contract = relationship("Contract", back_populates="documents")
 
-class Bill(Base):
-    __tablename__ = "bills"
-
-    id = Column(Integer, primary_key=True, index=True)
-    contract_id = Column(Integer, ForeignKey("contracts.id"), nullable=False)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
-    month = Column(String, nullable=False)
-    rent = Column(DECIMAL)
-    water = Column(DECIMAL)
-    electric = Column(DECIMAL)
-    discount = Column(DECIMAL)
-    total = Column(DECIMAL)
-
-    tenant = relationship("Tenant", back_populates="bills")
-    contract = relationship("Contract")
 
 
 
@@ -167,6 +152,8 @@ class MeterUsage(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     deleted_at = Column(DateTime, nullable=True)
     date_check = Column(Date)
+    
+    bill_links = relationship("BillHaveMeterUsage", back_populates="meter_usage")
 
 
 
@@ -238,3 +225,57 @@ class LockHasMeter(Base):
     # Relationships
     lock = relationship("Lock", back_populates="lock_meters")
     meter = relationship("Meter", back_populates="meter_locks")
+
+
+class Bill(Base):
+    __tablename__ = "bills"
+
+    id = Column(Integer, primary_key=True, index=True)
+    bill_number = Column(String, unique=True, nullable=False)
+    bill_type = Column(String, nullable=False)
+    ref_number = Column(String, nullable=False)
+    bill_name = Column(String, nullable=False)
+    contract_id = Column(Integer, ForeignKey("contracts.id"), nullable=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
+    date_check = Column(Date, nullable=True)
+    rent = Column(DECIMAL, nullable=True)
+    water = Column(DECIMAL, nullable=True)
+    water_usage = Column(DECIMAL, nullable=True)
+    electric = Column(DECIMAL, nullable=True)
+    electric_usage = Column(DECIMAL, nullable=True)
+    vat = Column(DECIMAL, nullable=True)
+    discount = Column(DECIMAL, nullable=True)
+    total = Column(DECIMAL, nullable=True)
+    total_vat = Column(DECIMAL, nullable=True)
+    status = Column(String, nullable=True)
+    confirm_by = Column(Integer, nullable=True)
+    confirm_date = Column(Date, nullable=True)
+    note = Column(Text, nullable=True)
+    created_by = Column(Integer, nullable=True)
+    client_id = Column(Integer, nullable=True)
+    company_id = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    tenant = relationship("Tenant", back_populates="bills")
+    contract = relationship("Contract")
+    meter_usages = relationship("BillHaveMeterUsage", back_populates="bill")
+
+
+
+
+class BillHaveMeterUsage(Base):
+    __tablename__ = "bill_have_meter_usages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    bill_id = Column(Integer, ForeignKey("bills.id"), nullable=False)
+    meter_usage_id = Column(Integer, ForeignKey("meter_usages.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    bill = relationship("Bill", back_populates="meter_usages")
+    meter_usage = relationship("MeterUsage", back_populates="bill_links")

@@ -71,17 +71,41 @@ CREATE TABLE bills (
     id SERIAL PRIMARY KEY,
     bill_number VARCHAR(255) UNIQUE NOT NULL,
     bill_type VARCHAR(255) NOT NULL,
+    ref_number VARCHAR(255) NOT NULL,
+    bill_name VARCHAR(255) NOT NULL,
     contract_id INT ,
     tenant_id INT ,
-    month VARCHAR(255) NOT NULL,
-    year VARCHAR(255) NOT NULL,
+    date_check DATE,
     rent decimal,
     water decimal,
+    water_usage decimal,
     electric decimal,
+    electric_usage decimal,
+    vat decimal,
     discount decimal,
     total decimal,
-    status VARCHAR(255)
+    total_vat decimal,
+    status VARCHAR(255),
+    confirm_by INT ,
+    confirm_date DATE,
+    note TEXT,
+    created_by INT ,
+    client_id INT,
+    company_id INT , 
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP
 );
+
+CREATE TABLE bill_have_meter_usages (
+    id SERIAL PRIMARY KEY,
+    bill_id INT,
+    meter_usage_id INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP
+)
+
 
 CREATE TABLE zones (
     id SERIAL PRIMARY KEY,
