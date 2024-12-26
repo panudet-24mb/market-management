@@ -395,7 +395,6 @@ def get_contracts_by_tenant_id(tenant_id: int, db: Session = Depends(get_db)):
 
 
 from sqlalchemy.orm import joinedload
-
 @app.get("/api/locks-with-contracts", response_model=List[dict])
 def get_locks_with_contracts(db: Session = Depends(get_db)):
     # Subquery to select the latest active contract or NULL for each lock
@@ -422,7 +421,7 @@ def get_locks_with_contracts(db: Session = Depends(get_db)):
         .subquery()
     )
 
-    # Main query to fetch locks, associated contract data, and lock reserves
+    # Main query to fetch locks, associated contract data, lock reserves, and meters
     query = (
         db.query(
             Lock.id.label("lock_id"),
@@ -447,9 +446,15 @@ def get_locks_with_contracts(db: Session = Depends(get_db)):
             LockReserve.advance.label("reserve_advance"),
             LockReserve.created_at.label("reserve_created_at"),
             LockReserve.contract_note.label("reserve_contract_note"),
+            Meter.id.label("meter_id"),
+            Meter.meter_type,
+            Meter.meter_number,
+            Meter.meter_serial,
         )
         .outerjoin(subquery, Lock.id == subquery.c.lock_id)  # Join locks with subquery
         .outerjoin(LockReserve, and_(Lock.id == LockReserve.lock_id, LockReserve.deleted_at.is_(None)))  # Join locks with LockReserve
+        .outerjoin(LockHasMeter, and_(Lock.id == LockHasMeter.lock_id, LockHasMeter.deleted_at.is_(None)))  # Join locks with LockHasMeter
+        .outerjoin(Meter, and_(Meter.id == LockHasMeter.meter_id, Meter.deleted_at.is_(None)))  # Join meters
         .order_by(Lock.id.desc())
     ).all()
 
@@ -479,7 +484,8 @@ def get_locks_with_contracts(db: Session = Depends(get_db)):
                 "profile_image": lock.profile_image,
                 "contract_id": lock.contract_id,
                 "contract_name": lock.contract_name,
-                "lock_reserves": []
+                "lock_reserves": [],
+                "meters": [],  # Initialize meters list
             }
         if lock.reserve_id:
             result[lock_id]["lock_reserves"].append({
@@ -492,10 +498,15 @@ def get_locks_with_contracts(db: Session = Depends(get_db)):
                 "created_at": lock.reserve_created_at,
                 "contract_note": lock.reserve_contract_note,
             })
+        if lock.meter_id:
+            result[lock_id]["meters"].append({
+                "meter_id": lock.meter_id,
+                "meter_type": lock.meter_type,
+                "meter_number": lock.meter_number,
+                "meter_serial": lock.meter_serial,
+            })
 
     return list(result.values())
-
-
 
 @app.get("/api/contracts/non_expired")
 def get_non_expired_contracts(db: Session = Depends(get_db)):
@@ -1194,6 +1205,115 @@ def update_meter_usage(
         raise HTTPException(status_code=500, detail=str(e))
 
     return {"message": "Meter usages updated successfully", "data": results}
+
+class AddMeterToLockSchema(BaseModel):
+    lock_id: int
+    meter_id: int
+    status: str = None
+    note: str = None
+    company_id: int = None
+    client_id: int = None
+
+class RemoveMeterFromLockSchema(BaseModel):
+    lock_id: int
+    meter_id: int
+
+@app.post("/api/lock-add-meter")
+def add_meter_to_lock(data: AddMeterToLockSchema, db: Session = Depends(get_db)):
+    # Check if lock exists
+    lock = db.query(Lock).filter(Lock.id == data.lock_id).first()
+    if not lock:
+        raise HTTPException(status_code=404, detail="Lock not found")
+
+    # Check if meter exists
+    meter = db.query(Meter).filter(Meter.id == data.meter_id).first()
+    if not meter:
+        raise HTTPException(status_code=404, detail="Meter not found")
+
+    # Check if the association already exists and is active
+    existing_relationship = (
+        db.query(LockHasMeter)
+        .filter(
+            LockHasMeter.lock_id == data.lock_id,
+            LockHasMeter.meter_id == data.meter_id,
+            LockHasMeter.deleted_at.is_(None)  # Only consider active relationships
+        )
+        .first()
+    )
+    if existing_relationship:
+        raise HTTPException(status_code=400, detail="Meter is already associated with this lock")
+
+    # Create the relationship
+    new_relationship = LockHasMeter(
+        lock_id=data.lock_id,
+        meter_id=data.meter_id,
+        status=data.status,
+        note=data.note,
+        company_id=data.company_id,
+        client_id=data.client_id,
+        created_at=datetime.utcnow(),
+    )
+    db.add(new_relationship)
+    db.commit()
+    db.refresh(new_relationship)
+    return {"message": "Meter added to lock successfully", "relationship": new_relationship}
+
+
+# Remove a meter from a lock
+@app.delete("/api/lock-remove-meter")
+def remove_meter_from_lock(data: RemoveMeterFromLockSchema, db: Session = Depends(get_db)):
+    # Find the relationship
+    relationship = (
+        db.query(LockHasMeter)
+        .filter(LockHasMeter.lock_id == data.lock_id, LockHasMeter.meter_id == data.meter_id)
+        .first()
+    )
+    if not relationship:
+        raise HTTPException(status_code=404, detail="Association between lock and meter not found")
+
+    # Soft delete by setting deleted_at timestamp
+    relationship.deleted_at = datetime.utcnow()
+    db.commit()
+    return {"message": "Meter removed from lock successfully"}
+
+
+@app.get("/api/meters-available")
+def get_available_meters(db: Session = Depends(get_db)):
+    """
+    Fetch all meters that are not currently associated with any active lock or are not soft deleted.
+    """
+    try:
+        # Query meters that are not linked to any active lock association
+        available_meters = (
+            db.query(Meter)
+            .outerjoin(LockHasMeter, and_(
+                Meter.id == LockHasMeter.meter_id,
+                LockHasMeter.deleted_at.is_(None)  # Active lock-meter associations
+            ))
+            .filter(
+                LockHasMeter.meter_id.is_(None),  # Meters not associated with locks
+                Meter.deleted_at.is_(None)        # Meters not soft-deleted
+            )
+            .all()
+        )
+
+        # Format the response
+        result = [
+            {
+                "id": meter.id,
+                "meter_name": meter.meter_type,  # Assuming `meter_type` is the name-like field
+                "meter_number": meter.meter_number,
+                "meter_serial": meter.meter_serial,
+                "status": "Available" if meter.deleted_at is None else "Deleted",
+            }
+            for meter in available_meters
+        ]
+        
+        return result
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch available meters: {str(e)}")
+    
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=4000, reload=True, workers=1)

@@ -9,11 +9,11 @@ import {
   Text,
   Spinner,
   useToast,
-
 } from '@chakra-ui/react';
 import LockTable from '../../components/LockTable';
 import NewLockModal from '../../components/NewLockModal';
 import BindContractModal from '../../components/BindContractModal';
+import AddMeterModal from '../../components/AddMeterModal'; // Import AddMeterModal
 import lockService from '../../services/lockService';
 import zoneService from '../../services/zoneService';
 
@@ -31,6 +31,7 @@ const LockListPage = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBindModalOpen, setIsBindModalOpen] = useState(false);
+  const [isAddMeterModalOpen, setIsAddMeterModalOpen] = useState(false); // State for AddMeterModal
   const [selectedLockId, setSelectedLockId] = useState(null);
   const [newLock, setNewLock] = useState({
     lock_name: '',
@@ -40,7 +41,6 @@ const LockListPage = () => {
     active: true,
   });
 
-  // Define fetchLocksAndZones here
   const fetchLocksAndZones = async () => {
     setLoading(true);
     try {
@@ -79,8 +79,6 @@ const LockListPage = () => {
     applyFilters(search, zoneId);
   };
 
-  
-
   const applyFilters = (searchQuery, zoneId) => {
     let filtered = [...locks];
 
@@ -108,8 +106,6 @@ const LockListPage = () => {
   const handleNextPage = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages));
 
   const openBindContractModal = (lockId) => {
-    console.log("openBindContractModal");
-    
     setSelectedLockId(lockId);
     setIsBindModalOpen(true);
   };
@@ -119,13 +115,20 @@ const LockListPage = () => {
     setIsBindModalOpen(false);
   };
 
+  const openAddMeterModal = (lockId) => {
+    setSelectedLockId(lockId);
+    setIsAddMeterModalOpen(true);
+  };
+
+  const closeAddMeterModal = () => {
+    setSelectedLockId(null);
+    setIsAddMeterModalOpen(false);
+  };
+
   const onClickEyeIcon = (id) => {
     console.log("onClickEyeIcon");
     console.log(id);
-    
-  }
-
-    
+  };
 
   const handleAddNewLock = async () => {
     try {
@@ -180,6 +183,7 @@ const LockListPage = () => {
               zones={zones}
               goToDetails={openBindContractModal}
               onClickIconEye={onClickEyeIcon}
+              openAddMeterModal={openAddMeterModal} // Pass this function
               fetchLocksAndZones={fetchLocksAndZones}
             />
           </Box>
@@ -211,7 +215,15 @@ const LockListPage = () => {
         isOpen={isBindModalOpen}
         onClose={closeBindContractModal}
         lockId={selectedLockId}
-        refreshLocks={fetchLocksAndZones} // Correctly pass the function
+        refreshLocks={fetchLocksAndZones}
+      />
+
+      <AddMeterModal
+        isOpen={isAddMeterModalOpen}
+        onClose={closeAddMeterModal}
+        lockId={selectedLockId}
+        refreshLocks={fetchLocksAndZones}
+        fetchLocksAndZones={fetchLocksAndZones} 
       />
     </Box>
   );

@@ -1,4 +1,5 @@
 import {PROD_IP} from './ipconfig';
+import axios from 'axios';
 
 const API_URL = PROD_IP;
 
@@ -70,6 +71,45 @@ const lockService = {
     });
     return response.data;
   },
+  getAvailableMeters: async () => {
+    try {
+      const response = await axios.get(`${API_URL}/meters-available`); // Use API_URL
+      console.log("API Response for available meters:", response.data); // Debug log
+      return response.data;
+    } catch (error) {
+      console.error("Error in lockService.getAvailableMeters:", error.response || error); // Debug log
+      throw new Error(error.response?.data?.detail || "Failed to fetch available meters.");
+    }
+  },
+  
+  addMeterToLock: async (lockId, meterId) => {
+    try {
+      const response = await axios.post(`${API_URL}/lock-add-meter`, {
+        lock_id: lockId,
+        meter_id: meterId,
+      }); // Use API_URL
+      console.log("Meter added to lock:", response.data); // Debug log
+      return response.data;
+    } catch (error) {
+      console.error("Error adding meter to lock:", error.response || error); // Debug log
+      throw new Error(error.response?.data?.detail || "Failed to add meter to lock.");
+    }
+  },
+  
+  // Remove a meter from a lock
+  removeMeterFromLock: async (lockId, meterId) => {
+    try {
+      const payload = {
+        lock_id: lockId,
+        meter_id: meterId,
+      };
+      const response = await axios.delete(`${API_URL}/lock-remove-meter`, { data: payload }); // Use API_URL
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.detail || "Failed to remove meter from lock.");
+    }
+  },
+  
   
 };
 

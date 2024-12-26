@@ -21,11 +21,13 @@ import {
   Box,
   VStack,
   Text,
+  HStack
 } from "@chakra-ui/react";
 import { CheckCircleIcon, WarningIcon, TimeIcon, ViewIcon } from "@chakra-ui/icons";
 import contractService from "../services/contractService";
+import lockService from "../services/lockService";
 
-const LockTable = ({ displayedLocks, zones, goToDetails, onClickIconEye, fetchLocksAndZones }) => {
+const LockTable = ({ displayedLocks, zones, goToDetails, onClickIconEye, openAddMeterModal, fetchLocksAndZones }) => {
   const toast = useToast();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -72,17 +74,38 @@ const LockTable = ({ displayedLocks, zones, goToDetails, onClickIconEye, fetchLo
     }
   };
 
+  const handleRemoveMeter = async (lockId, meterId) => {
+    try {
+      await lockService.removeMeterFromLock(lockId, meterId);
+      toast({
+        title: "Meter removed successfully",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      fetchLocksAndZones();
+    } catch (error) {
+      toast({
+        title: "Error removing meter",
+        description: error.message || "An error occurred while removing the meter.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
   const renderBgTable = (data) => {
     if (data.days_left && data.days_left <= 60) {
-      return "red.100"
+      return "red.100";
     } else {
       if (data.contract_number) {
-        return "green.100"
+        return "green.100";
       } else if (data.lock_reserves.length > 0) {
-        return "orange.100"
+        return "orange.100";
       }
     }
-  }
+  };
 
   return (
     <>
@@ -102,15 +125,13 @@ const LockTable = ({ displayedLocks, zones, goToDetails, onClickIconEye, fetchLo
             <Th>End</Th>
             <Th>Days Left</Th>
             <Th>Reserve List</Th>
+            <Th>Meters</Th>
             <Th>Actions</Th>
           </Tr>
         </Thead>
         <Tbody>
           {displayedLocks.map((lock) => (
-            <Tr
-              key={lock.lock_id}
-              bg={renderBgTable(lock)}
-            >
+            <Tr key={lock.lock_id} bg={renderBgTable(lock)}>
               <Td>{lock.lock_id}</Td>
               <Td>{lock.lock_name}</Td>
               <Td>{lock.lock_number}</Td>
@@ -153,11 +174,9 @@ const LockTable = ({ displayedLocks, zones, goToDetails, onClickIconEye, fetchLo
                     {lock.lock_reserves.map((reserve) => (
                       <Box key={reserve.reserve_id} p={2} borderWidth="1px" borderRadius="md" backgroundColor={"blue.200"}>
                         <Tag colorScheme="purple">{reserve.contract_name}</Tag>
-
                         <Text fontSize="sm">Contract Number: {reserve.contract_number}</Text>
                         <Text fontSize="sm">Contract Note: {reserve.contract_note}</Text>
                         <Text fontSize="sm">Created: {new Date(reserve.created_at).toLocaleString()}</Text>
-
                         <Tag colorScheme="green">Deposit: {reserve.deposit}</Tag>
                         <Tag colorScheme="green">Advance: {reserve.advance}</Tag>
                       </Box>
@@ -167,6 +186,66 @@ const LockTable = ({ displayedLocks, zones, goToDetails, onClickIconEye, fetchLo
                   "No Reserves"
                 )}
               </Td>
+              <Td>
+  {lock.meters && lock.meters.length > 0 ? (
+    <VStack align="start" spacing={4} w="100%">
+      {lock.meters.map((meter) => (
+        <Box
+          key={meter.meter_id}
+          p={4}
+          borderWidth="2px"
+          borderColor="blue.300"
+          borderRadius="lg"
+          backgroundColor="gray.100"
+          shadow="md"
+          w="100%"
+          display="flex"
+          flexDirection="column"
+          alignItems="start"
+        >
+          {/* Header */}
+          <Box
+            bg="blue.500"
+            color="white"
+            w="100%"
+            p={2}
+            borderRadius="md"
+            textAlign="center"
+            fontWeight="bold"
+          >
+            {meter.meter_type}
+          </Box>
+          {/* Body */}
+          <VStack align="start" spacing={2} mt={3} w="100%">
+            <HStack spacing={2} w="100%">
+              <Tag colorScheme="blue" size="md">
+                <strong>Number:</strong> {meter.meter_number}
+              </Tag>
+              <Tag colorScheme="green" size="md">
+                <strong>Serial:</strong> {meter.meter_serial}
+              </Tag>
+            </HStack>
+            <Text fontSize="sm" color="gray.600" mt={1}>
+              Meter Status: <strong>Active</strong>
+            </Text>
+          </VStack>
+          {/* Footer */}
+          <Button
+            size="sm"
+            colorScheme="red"
+            mt={3}
+            onClick={() => handleRemoveMeter(lock.lock_id, meter.meter_id)}
+          >
+            Remove Meter
+          </Button>
+        </Box>
+      ))}
+    </VStack>
+  ) : (
+    <Text color="gray.500">No Meters</Text>
+  )}
+</Td>
+
               <Td>
                 <IconButton
                   icon={<ViewIcon />}
@@ -192,6 +271,15 @@ const LockTable = ({ displayedLocks, zones, goToDetails, onClickIconEye, fetchLo
                   ml={2}
                 >
                   Cancel
+                </Button>
+                <br/>
+                <Button
+                  colorScheme="teal"
+                  size="sm"
+                  onClick={() => openAddMeterModal(lock.lock_id)}
+                  ml={2}
+                >
+                  + Meters
                 </Button>
               </Td>
             </Tr>
