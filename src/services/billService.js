@@ -31,7 +31,7 @@ const billService = {
    */
    createBills: async (bills) => {
     try {
-      const response = await axios.post(`${BASE_URL}/create-bills`, bills, {
+      const response = await axios.post(`${BASE_URL}/create-bills?created_by=1&send_notification_via_line=true`, bills, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -44,33 +44,18 @@ const billService = {
   },
 
 
-  /**
-   * Submit a new bill.
-   * @param {Object} billData - The bill data to submit.
-   * @returns {Promise} - Axios promise with the submission result.
-   */
-  submitBill: async (billData) => {
-    try {
-      const response = await axios.post(`${BASE_URL}/bills`, billData);
-      return response.data;
-    } catch (error) {
-      console.error('Error submitting bill:', error);
-      throw error;
-    }
+  getBillDetails: async (billNumber, refNumber) => {
+    const response = await axios.get(`${BASE_URL}/get-bill-details`, {
+      params: { bill_number: billNumber, ref_number: refNumber },
+    });
+    return response.data;
   },
 
-  /**
-   * Fetch all bills.
-   * @returns {Promise} - Axios promise with all bills.
-   */
-  getAllBills: async () => {
-    try {
-      const response = await axios.get(`${BASE_URL}/bills`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching all bills:', error);
-      throw error;
-    }
+  sendPaymentSlip: async (formData) => {
+    const response = await axios.post(`${BASE_URL}/send-payment-slip`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data;
   },
 };
 

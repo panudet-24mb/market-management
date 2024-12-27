@@ -123,6 +123,32 @@ CREATE TABLE bill_have_notification (
     deleted_at TIMESTAMP
 )
 
+CREATE TABLE bill_have_transactions (
+    id SERIAL PRIMARY KEY,
+    txn_number VARCHAR(255),
+    bill_id INT,
+    ref_number VARCHAR(255),
+    transaction_type VARCHAR(255),
+    amount decimal, 
+    transaction_date DATE,
+    status VARCHAR(255),
+    note TEXT,
+    created_by INT ,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP
+)
+
+CREATE TABLE transaction_have_attachments (
+    id SERIAL PRIMARY KEY,
+    bill_have_transactions_id INT,
+    filename VARCHAR(255) NOT NULL,
+    path VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP
+)
+
 
 CREATE TABLE zones (
     id SERIAL PRIMARY KEY,

@@ -12,6 +12,8 @@ const DashboardPage = () => {
       <Heading size="md" mb={3}>Version Updates</Heading>
       
       <Box>
+      <Text fontSize="lg" fontWeight="bold" mt={4}>v0.0.8</Text>
+      <Text> สามารถส่งหลักฐานการชำระเงินได้ </Text>
       <Text fontSize="lg" fontWeight="bold" mt={4}>v0.0.7</Text>
       <Text> sent billing to teant via line flex message v2push </Text>
 

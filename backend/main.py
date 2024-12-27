@@ -22,6 +22,8 @@ from models import (
     LockHasMeter,
     BillHaveNotification,
     BillHaveMeterUsage,
+    BillHaveTransaction,
+    TransactionHaveAttachment,
 )
 from crud import (
     create_tenant,
@@ -35,6 +37,7 @@ from crud import (
 )
 from crud import create_zone, get_zones, get_zone_by_id, update_zone, delete_zone
 import json
+
 # import CORS
 from fastapi.middleware.cors import CORSMiddleware
 import os
@@ -66,6 +69,10 @@ from fastapi import Body
 import uuid
 import locale
 
+# JSONResponse
+from fastapi.responses import JSONResponse
+
+
 UPLOAD_DIR = "./uploads"
 
 # static files
@@ -74,13 +81,24 @@ UPLOAD_DIR = "./uploads"
 
 def format_thai_date(date):
     months = [
-        "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-        "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+        "มกราคม",
+        "กุมภาพันธ์",
+        "มีนาคม",
+        "เมษายน",
+        "พฤษภาคม",
+        "มิถุนายน",
+        "กรกฎาคม",
+        "สิงหาคม",
+        "กันยายน",
+        "ตุลาคม",
+        "พฤศจิกายน",
+        "ธันวาคม",
     ]
     day = date.day
     month = months[date.month - 1]
     year = date.year + 543  # Convert to Buddhist calendar year
     return f"{day} {month} {year}"
+
 
 thai_date = format_thai_date(datetime.now())
 Base.metadata.create_all(bind=engine)
@@ -1929,6 +1947,7 @@ def create_bills(
                 total=total_after_discount,
                 total_vat=total_with_vat,
                 created_by=created_by,
+                status="UNPAID",
             )
 
             db.add(new_bill)
@@ -1937,7 +1956,7 @@ def create_bills(
 
             if send_notification_via_line and tenant.line_id:
                 try:
-                    
+
                     flex_message = {
                         "type": "flex",
                         "altText": f"Invoice for Bill {new_bill.bill_number}",
@@ -2018,12 +2037,46 @@ def create_bills(
                                         "contents": [
                                             {
                                                 "type": "text",
+                                                "text": "Water Unit:",
+                                                "size": "sm",
+                                            },
+                                            {
+                                                "type": "text",
+                                                "text": f"{new_bill.water_usage}",
+                                                "size": "sm",
+                                                "align": "end",
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        "type": "box",
+                                        "layout": "horizontal",
+                                        "contents": [
+                                            {
+                                                "type": "text",
                                                 "text": "Water:",
                                                 "size": "sm",
                                             },
                                             {
                                                 "type": "text",
                                                 "text": f"{new_bill.water} ฿",
+                                                "size": "sm",
+                                                "align": "end",
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        "type": "box",
+                                        "layout": "horizontal",
+                                        "contents": [
+                                            {
+                                                "type": "text",
+                                                "text": "Electric Unit:",
+                                                "size": "sm",
+                                            },
+                                            {
+                                                "type": "text",
+                                                "text": f"{new_bill.electric_usage} kWh",
                                                 "size": "sm",
                                                 "align": "end",
                                             },
@@ -2108,32 +2161,36 @@ def create_bills(
                                                                 "type": "text",
                                                                 "text": "บริษัท รับเงินทองไม่จำกัด",
                                                                 "size": "sm",
-                                                                "margin": "none",
                                                                 "align": "start",
                                                             },
                                                             {
                                                                 "type": "text",
                                                                 "text": "เลขบัญชี: 788-1-17160-3",
                                                                 "size": "sm",
-                                                                "margin": "none",
                                                                 "align": "start",
                                                             },
                                                             {
                                                                 "type": "text",
                                                                 "text": "ธนาคารกรุงศรี อยุทธยา",
                                                                 "size": "sm",
-                                                                "margin": "none",
                                                                 "align": "start",
                                                             },
                                                         ],
-                                                        "spacing": "none",
-                                                        "margin": "none",
                                                     },
                                                 ],
-                                                "spacing": "none",
-                                                "margin": "none",
                                             },
                                         ],
+                                    },
+                                    {"type": "separator", "margin": "md"},
+                                    {
+                                        "type": "button",
+                                        "action": {
+                                            "type": "uri",
+                                            "label": "ส่งหลักฐานการชำระเงิน",
+                                            "uri": f"https://backoffice.rnt.co.th//send-payment-slip?bill_number={new_bill.bill_number}&ref_number={new_bill.ref_number}",
+                                        },
+                                        "style": "primary",
+                                        "color": "#1DB446",
                                     },
                                 ],
                             },
@@ -2148,7 +2205,9 @@ def create_bills(
                         sent_to=tenant.line_id,
                         notification_type="Invoice",
                         note="Invoice sent via LINE",
-                        payload=json.dumps(flex_message),  # Store the message payload as JSON
+                        payload=json.dumps(
+                            flex_message
+                        ),  # Store the message payload as JSON
                         notification_channel="LINE",
                         is_sent=True,
                         created_by=created_by,
@@ -2182,6 +2241,124 @@ def create_bills(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+@app.get("/api/get-bill-details")
+def get_bill_details(bill_number: str, ref_number: str, db: Session = Depends(get_db)):
+    """
+    Fetch a bill based on bill_number and ref_number.
+    """
+    bill = (
+        db.query(Bill)
+        .filter(
+            Bill.bill_number == bill_number,
+            Bill.ref_number == ref_number,
+            Bill.deleted_at.is_(None),
+        )
+        .first()
+    )
+
+    if not bill:
+        raise HTTPException(status_code=404, detail="Bill not found.")
+
+    return {
+        "bill_id": bill.id,
+        "bill_status": bill.status,
+        "bill_number": bill.bill_number,
+        "ref_number": bill.ref_number,
+        "bill_name": bill.bill_name,
+        "date_check": bill.date_check,
+        "rent": float(bill.rent or 0),
+        "water": float(bill.water or 0),
+        "electric": float(bill.electric or 0),
+        "total": float(bill.total or 0),
+        "total_vat": float(bill.total_vat or 0),
+        "status": bill.status,
+    }
+
+
+@app.post("/api/send-payment-slip")
+def send_payment_slip(
+    bill_number: str = Form(...),
+    ref_number: str = Form(...),
+    transaction_type: str = Form(...),
+    amount: float = Form(...),
+    transaction_date: str = Form(...),  # Assume date is passed as YYYY-MM-DD
+    note: str = Form(None),
+    files: List[UploadFile] = None,
+    db: Session = Depends(get_db),
+):
+    """
+    Submit payment slip for a bill.
+    """
+    # Directory for uploads
+    upload_dir = "./uploads/slip"
+
+    # Ensure the upload directory exists
+    if not os.path.exists(upload_dir):
+        os.makedirs(upload_dir, exist_ok=True)
+
+    # Fetch bill by bill_number and ref_number
+    bill = (
+        db.query(Bill)
+        .filter(
+            Bill.bill_number == bill_number,
+            Bill.ref_number == ref_number,
+            Bill.deleted_at.is_(None),
+        )
+        .first()
+    )
+
+    if not bill:
+        raise HTTPException(status_code=404, detail="Bill not found.")
+
+    # Create a new transaction
+    transaction = BillHaveTransaction(
+        txn_number=f"TXN-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+        bill_id=bill.id,
+        ref_number=ref_number,
+        transaction_type=transaction_type,
+        amount=amount,
+        transaction_date=datetime.strptime(transaction_date, "%Y-%m-%d"),
+        status="Pending",
+        note=note,
+        created_by=None,  # Replace with actual user if available
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
+    )
+    db.add(transaction)
+    db.commit()
+    db.refresh(transaction)
+
+    # Save attachments if provided
+    if files:
+        for file in files:
+            # Generate a unique filename
+            timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+            unique_filename = f"{timestamp}_{file.filename}"
+            saved_path = os.path.join(upload_dir, unique_filename)
+
+            # Save the file
+            with open(saved_path, "wb") as buffer:
+                buffer.write(file.file.read())
+
+            # Save the attachment record
+            attachment = TransactionHaveAttachment(
+                bill_have_transactions_id=transaction.id,
+                filename=unique_filename,
+                path=saved_path,
+            )
+            db.add(attachment)
+        db.commit()
+
+    return JSONResponse(
+        status_code=201,
+        content={
+            "message": "Payment slip submitted successfully.",
+            "transaction_id": transaction.id,
+            "attachments": [file.filename for file in files] if files else [],
+        },
+    )
 
 
 if __name__ == "__main__":

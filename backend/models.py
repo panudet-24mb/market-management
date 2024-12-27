@@ -269,6 +269,7 @@ class Bill(Base):
     contract = relationship("Contract")
     meter_usages = relationship("BillHaveMeterUsage", back_populates="bill")
     notifications = relationship("BillHaveNotification", back_populates="bill")
+    transactions = relationship("BillHaveTransaction", back_populates="bill")
 
 
 
@@ -310,3 +311,39 @@ class BillHaveNotification(Base):
     # Relationships
     bill = relationship("Bill", back_populates="notifications")
     tenant = relationship("Tenant", back_populates="notifications")
+
+class BillHaveTransaction(Base):
+    __tablename__ = "bill_have_transactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    txn_number = Column(String(255), nullable=True)
+    bill_id = Column(Integer, ForeignKey("bills.id"), nullable=True)
+    ref_number = Column(String(255), nullable=True)
+    transaction_type = Column(String(255), nullable=True)
+    amount = Column(DECIMAL, nullable=True)
+    transaction_date = Column(Date, nullable=True)
+    status = Column(String(255), nullable=True)
+    note = Column(Text, nullable=True)
+    created_by = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    bill = relationship("Bill", back_populates="transactions")
+    attachments = relationship("TransactionHaveAttachment", back_populates="transaction")
+
+
+class TransactionHaveAttachment(Base):
+    __tablename__ = "transaction_have_attachments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    bill_have_transactions_id = Column(Integer, ForeignKey("bill_have_transactions.id"), nullable=False)
+    filename = Column(String(255), nullable=False)
+    path = Column(String(255), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    transaction = relationship("BillHaveTransaction", back_populates="attachments")

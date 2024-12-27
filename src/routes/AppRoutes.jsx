@@ -20,6 +20,8 @@ import LiffRegisterPage from '../pages/LiffRegister';
 import Watcher from '../pages/MeterWatcher/Watcher';
 import LockReservesPage from '../pages/Reserve/LockReservesPage';
 import CallCenterPage from '../pages/CallCenter/CallCenterPage';
+import SendPaymentSlipPage from '../pages/SendPaymentSlip/index.jsx';
+import ThankYouPage from '../pages/AfterSubmitSlip/index.jsx';
 // import NavigationBar from './src/components/NavigationBar.jsx';
 
 import PrivateRoute from "./PrivateRoute.jsx";
@@ -34,6 +36,8 @@ const AppRoutes = () => {
         <Route exact path='/liff-register' element={<LiffRegisterPage />} />
         <Route exact path='/login' element={<LoginPage />} />
         <Route exact path='/watcher' element={<Watcher />} />
+        <Route exact path='/send-payment-slip' element={<SendPaymentSlipPage />} />
+        <Route exact path='/thank-you' element={<ThankYouPage />} />
 
 
         <Route exact path='/' element={<PrivateRoute />}>
