@@ -24,6 +24,26 @@ const billService = {
     }
   },
 
+   /**
+   * Create bills for selected contracts.
+   * @param {Array} bills - Array of bills to create.
+   * @returns {Promise} - Axios promise with the creation result.
+   */
+   createBills: async (bills) => {
+    try {
+      const response = await axios.post(`${BASE_URL}/create-bills`, bills, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error creating bills:', error);
+      throw error;
+    }
+  },
+
+
   /**
    * Submit a new bill.
    * @param {Object} billData - The bill data to submit.

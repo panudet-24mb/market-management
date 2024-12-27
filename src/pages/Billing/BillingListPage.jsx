@@ -18,13 +18,14 @@ import {
   Tag,
   Button,
   Spinner,
+  Checkbox,
   useToast,
 } from "@chakra-ui/react";
 import { Icon } from "@chakra-ui/react";
 import { FaUserCircle } from "react-icons/fa"; // Import a user icon for fallback
 import billService from "../../services/billService";
 
-const BillingRow = ({ contract }) => {
+const BillingRow = ({ contract, isSelected, onSelect }) => {
   const hasProfileImage = !!contract.tenant_profile_image;
   const [total, setTotal] = useState(contract.calculations.total_bill);
   const [discount, setDiscount] = useState(0);
@@ -41,28 +42,35 @@ const BillingRow = ({ contract }) => {
   };
 
   return (
-    <Tr>
-      <Td position="sticky" left={0} bg="white" zIndex={1}>
-         <VStack align="start">
-      <HStack>
-        {hasProfileImage ? (
-          <Image
-            src={contract.tenant_profile_image}
-            alt={`${contract.tenant_name} Profile`}
-            boxSize="40px"
-            borderRadius="full"
-            objectFit="cover"
-            fallbackSrc="path/to/default-icon.png"
-          />
-        ) : (
-          <Icon as={FaUserCircle} boxSize="40px" color="gray.400" />
-        )}
-        <VStack align="start" spacing={0}>
-          <Text fontWeight="bold">{contract.contract_number}</Text>
-          <Text>{contract.tenant_name}</Text>
+    <Tr bg={isSelected ? "blue.50" : "white"}> {/* Highlight selected row */}
+      <Td>
+        <Checkbox
+          isChecked={isSelected}
+          isDisabled={!!contract.bill} // Disable checkbox if the contract has an existing bill
+          onChange={() => onSelect(contract.contract_id)} // Use contract_id
+        />
+      </Td>
+      <Td position="sticky" left={0} bg={isSelected ? "blue.100" : "white"} zIndex={1}>
+        <VStack align="start">
+          <HStack>
+            {hasProfileImage ? (
+              <Image
+                src={contract.tenant_profile_image}
+                alt={`${contract.tenant_name} Profile`}
+                boxSize="40px"
+                borderRadius="full"
+                objectFit="cover"
+                fallbackSrc="path/to/default-icon.png"
+              />
+            ) : (
+              <Icon as={FaUserCircle} boxSize="40px" color="gray.400" />
+            )}
+            <VStack align="start" spacing={0}>
+              <Text fontWeight="bold">{contract.contract_number}</Text>
+              <Text>{contract.tenant_name}</Text>
+            </VStack>
+          </HStack>
         </VStack>
-      </HStack>
-    </VStack>
       </Td>
       <Td>
         {contract.locks.map((lock) => (
@@ -102,7 +110,17 @@ const BillingRow = ({ contract }) => {
         <Tag colorScheme="green">{total.toFixed(2)}</Tag>
       </Td>
       <Td>
-        <Button colorScheme="teal">Save</Button>
+        {contract.bill ? (
+          <VStack align="start" spacing={1}>
+            <Tag colorScheme="teal">{contract.bill.status || "Pending"}</Tag>
+            <Text fontSize="sm">Bill No: {contract.bill.bill_number || "N/A"}</Text>
+            <Tag colorScheme="blue">{contract.bill.ref_number || "N/A"}</Tag>
+            <Text fontSize="sm">Total: {contract.bill.total?.toFixed(2) || "0.00"} ฿</Text>
+            <Text fontSize="sm">Date: {contract.bill.date_check || "N/A"}</Text>
+          </VStack>
+        ) : (
+          <Tag colorScheme="red">No Bill</Tag>
+        )}
       </Td>
     </Tr>
   );
@@ -113,27 +131,74 @@ const BillingListPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedContracts, setSelectedContracts] = useState([]);
   const toast = useToast();
 
+  const handleSelectContract = (contractId) => {
+    setSelectedContracts((prevSelected) =>
+      prevSelected.includes(contractId)
+        ? prevSelected.filter((id) => id !== contractId)
+        : [...prevSelected, contractId]
+    );
+  };
+
+  const handleSaveSelected = async () => {
+    const selectedData = contracts
+      .filter((contract) => selectedContracts.includes(contract.contract_id))
+      .map((contract) => ({
+        contract_id: contract.contract_id, // Pass correct contract_id
+        year: selectedYear,
+        month: selectedMonth,
+        discount: 0, // Add logic to handle dynamic discounts if required
+        vat_percent: 0, // Add logic to handle dynamic VAT if required
+      }));
+
+    try {
+      setIsLoading(true); // Start loading spinner
+      await billService.createBills(selectedData); // Call the API to save bills
+      toast({
+        title: "Success",
+        description: "Bills created successfully.",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      setSelectedContracts([]); // Clear selected contracts after saving
+      await fetchBillingData(); // Re-fetch billing data
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create bills.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoading(false); // Stop loading spinner
+    }
+  };
+
+  const fetchBillingData = async () => {
+    try {
+      setIsLoading(true); // Show loading spinner
+      const data = await billService.getEligibleLocksForBilling(selectedYear, selectedMonth);
+      setContracts(data);
+    } catch (error) {
+      toast({
+        title: "Error Fetching Data",
+        description: "Could not fetch billing data.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoading(false); // Hide loading spinner
+    }
+  };
+
   useEffect(() => {
-    const fetchBillingData = async () => {
-      try {
-        const data = await billService.getEligibleLocksForBilling(selectedYear, selectedMonth);
-        setContracts(data);
-      } catch (error) {
-        toast({
-          title: "Error Fetching Data",
-          description: "Could not fetch billing data.",
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchBillingData();
-  }, [selectedYear, selectedMonth, toast]);
+  }, [selectedYear, selectedMonth]);
 
   if (isLoading) {
     return (
@@ -164,21 +229,16 @@ const BillingListPage = () => {
             </option>
           ))}
         </Select>
-        {/* <Button
-          colorScheme="teal"
-          onClick={() => {
-            setIsLoading(true);
-            setContracts([]);
-          }}
-        >
-          Refresh
-        </Button> */}
+        <Button colorScheme="teal" onClick={handleSaveSelected} size={"md"}>
+          Save
+        </Button>
       </HStack>
 
       <Box overflowX="auto" w="100%">
-        <Table variant="striped" size="md">
+        <Table variant="" size="md">
           <Thead>
             <Tr>
+              <Th>Select</Th>
               <Th position="sticky" left={0} bg="gray.100" zIndex={2}>
                 Contract Details
               </Th>
@@ -189,12 +249,17 @@ const BillingListPage = () => {
               <Th>Discount (บาท)</Th>
               <Th>VAT (%)</Th>
               <Th>Total (บาท)</Th>
-              <Th>Actions</Th>
+              <Th>Bill Status</Th>
             </Tr>
           </Thead>
           <Tbody>
             {contracts.map((contract) => (
-              <BillingRow key={contract.contract_number} contract={contract} />
+              <BillingRow
+                key={contract.contract_id}
+                contract={contract}
+                isSelected={selectedContracts.includes(contract.contract_id)}
+                onSelect={handleSelectContract}
+              />
             ))}
           </Tbody>
         </Table>

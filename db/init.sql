@@ -106,6 +106,23 @@ CREATE TABLE bill_have_meter_usages (
     deleted_at TIMESTAMP
 )
 
+CREATE TABLE bill_have_notification (
+    id SERIAL PRIMARY KEY,
+    notification_code VARCHAR(255),
+    tenant_id INT,
+    bill_id INT,
+    sent_to VARCHAR(255),
+    notification_type VARCHAR(255),
+    note TEXT,
+    payload TEXT,
+    notification_channel VARCHAR(255),
+    is_sent BOOLEAN,
+    created_by INT ,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP
+)
+
 
 CREATE TABLE zones (
     id SERIAL PRIMARY KEY,
@@ -151,6 +168,11 @@ CREATE TABLE contracts (
     advance decimal,
     deposit decimal,
     note TEXT
+    client_id INT,
+    company_id INT ,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP
 );
 
 

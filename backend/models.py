@@ -49,6 +49,7 @@ class Tenant(Base):
     # Relationships
     contracts = relationship("Contract", back_populates="tenant")
     bills = relationship("Bill", back_populates="tenant")  # Add this line
+    notifications = relationship("BillHaveNotification", back_populates="tenant")  # Link to BillHaveNotification
 
 
 class BindContractRequest(BaseModel):
@@ -93,6 +94,11 @@ class Contract(Base):
     advance = Column(Integer)
     deposit = Column(Integer)
     note = Column(Text)
+    client_id = Column(Integer, nullable=True)
+    company_id = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)
 
     # Relationships
     tenant = relationship("Tenant", back_populates="contracts")
@@ -262,6 +268,8 @@ class Bill(Base):
     tenant = relationship("Tenant", back_populates="bills")
     contract = relationship("Contract")
     meter_usages = relationship("BillHaveMeterUsage", back_populates="bill")
+    notifications = relationship("BillHaveNotification", back_populates="bill")
+
 
 
 
@@ -279,3 +287,26 @@ class BillHaveMeterUsage(Base):
     # Relationships
     bill = relationship("Bill", back_populates="meter_usages")
     meter_usage = relationship("MeterUsage", back_populates="bill_links")
+
+
+class BillHaveNotification(Base):
+    __tablename__ = "bill_have_notification"
+
+    id = Column(Integer, primary_key=True, index=True)
+    notification_code = Column(String(255), nullable=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
+    bill_id = Column(Integer, ForeignKey("bills.id"), nullable=False)
+    sent_to = Column(String(255), nullable=True)
+    notification_type = Column(String(255), nullable=True)
+    note = Column(Text, nullable=True)
+    payload = Column(Text, nullable=True)
+    notification_channel = Column(String(255), nullable=True)
+    is_sent = Column(Boolean, default=False)
+    created_by = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=func.current_timestamp())
+    updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
+    deleted_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    bill = relationship("Bill", back_populates="notifications")
+    tenant = relationship("Tenant", back_populates="notifications")

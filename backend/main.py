@@ -1,25 +1,46 @@
-from fastapi import FastAPI, HTTPException, Depends,Query
+from fastapi import FastAPI, HTTPException, Depends, Query
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
 from typing import List
 from fastapi.staticfiles import StaticFiles
 from database import SessionLocal, engine
-from models import Base , Tenant, Lock, Contract, Document, Bill, Zone ,LockHasContract ,BindContractRequest , Meter , MeterUsage ,LockReserve ,LockReserveAttachment , LockHasMeter
-from crud import (
-    create_tenant, get_tenants, get_tenant_by_id,
-    create_lock, get_locks,
-    create_contract, get_contracts_by_tenant,
-    create_bill
+from models import (
+    Base,
+    Tenant,
+    Lock,
+    Contract,
+    Document,
+    Bill,
+    Zone,
+    LockHasContract,
+    BindContractRequest,
+    Meter,
+    MeterUsage,
+    LockReserve,
+    LockReserveAttachment,
+    LockHasMeter,
+    BillHaveNotification,
+    BillHaveMeterUsage,
 )
 from crud import (
-    create_zone, get_zones, get_zone_by_id, update_zone, delete_zone
+    create_tenant,
+    get_tenants,
+    get_tenant_by_id,
+    create_lock,
+    get_locks,
+    create_contract,
+    get_contracts_by_tenant,
+    create_bill,
 )
+from crud import create_zone, get_zones, get_zone_by_id, update_zone, delete_zone
+import json
 # import CORS
 from fastapi.middleware.cors import CORSMiddleware
-import os 
+import os
 from datetime import datetime
-#timedelta
+
+# timedelta
 from datetime import timedelta
 from datetime import date
 from sqlalchemy import Integer, func, or_
@@ -29,36 +50,45 @@ from repository.meter import (
     get_meter_by_id,
     create_meter_usage,
     get_meter_usages,
-    validate_meter_usage ,
-    get_latest_meter_usages
-    )
+    validate_meter_usage,
+    get_latest_meter_usages,
+)
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from sqlalchemy import Integer, func, and_
 from sqlalchemy import extract
-from line import send_line_flex_message
+from line import send_line_flex_message, send_line_notification
 import shutil
 import uuid
 from pathlib import Path
 from fastapi import Body
+import uuid
+import locale
+
 UPLOAD_DIR = "./uploads"
 
-#static files
-#read file 
+# static files
+# read file
 
 
+def format_thai_date(date):
+    months = [
+        "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+        "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+    ]
+    day = date.day
+    month = months[date.month - 1]
+    year = date.year + 543  # Convert to Buddhist calendar year
+    return f"{day} {month} {year}"
 
-
-
+thai_date = format_thai_date(datetime.now())
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
-origins = [
-    "*"
-]
+origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -68,6 +98,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # Dependency
 def get_db():
     db = SessionLocal()
@@ -76,14 +107,17 @@ def get_db():
     finally:
         db.close()
 
+
 # Tenant Endpoints
 @app.post("/api/tenants")
 def create_tenant_api(tenant_data: dict, db: Session = Depends(get_db)):
     return create_tenant(db, tenant_data)
 
+
 @app.get("/api/tenants")
 def get_tenants_api(db: Session = Depends(get_db)):
     return get_tenants(db)
+
 
 @app.get("/api/tenants/{tenant_id}")
 def get_tenant_api(tenant_id: int, db: Session = Depends(get_db)):
@@ -92,14 +126,17 @@ def get_tenant_api(tenant_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Tenant not found")
     return tenant
 
+
 # Lock Endpoints
 @app.post("/api/locks")
 def create_lock_api(lock_data: dict, db: Session = Depends(get_db)):
     return create_lock(db, lock_data)
 
+
 @app.get("/api/locks")
 def get_locks_api(db: Session = Depends(get_db)):
     return get_locks(db)
+
 
 # Contract Endpoints
 @app.post("/api/contracts")
@@ -118,7 +155,6 @@ def create_contract_api(
     note: str = Form(...),
     contract_name: str = Form(...),
     db: Session = Depends(get_db),
-
 ):
     # Validate inputs
     if not tenant_id or not start_date or not end_date:
@@ -143,7 +179,7 @@ def create_contract_api(
         advance=advance,
         deposit=deposit,
         note=note,
-        contract_name= contract_name
+        contract_name=contract_name,
     )
     db.add(new_contract)
     db.commit()
@@ -176,9 +212,12 @@ def create_contract_api(
     response_data["documents"] = [doc.__dict__ for doc in uploaded_files]
 
     return response_data
+
+
 # @app.get("/api/contracts/tenant/{tenant_id}")
 # def get_contracts_by_tenant_api(tenant_id: int, db: Session = Depends(get_db)):
 #     return get_contracts_by_tenant(db, tenant_id)
+
 
 @app.post("/api/contracts/{contract_id}/documents")
 async def add_documents_to_contract(
@@ -193,7 +232,7 @@ async def add_documents_to_contract(
 
     # Define the directory path for storing files
     contract_number = contract.contract_number
-    
+
     dir_path = f"uploads/{contract_number}"
     os.makedirs(dir_path, exist_ok=True)  # Create the directory if it does not exist
 
@@ -211,7 +250,7 @@ async def add_documents_to_contract(
             contract_id=contract_id,
             filename=file.filename,
             path=file_path,
-            contract_type="general"
+            contract_type="general",
         )
         db.add(document)
         documents.append(document)
@@ -219,6 +258,7 @@ async def add_documents_to_contract(
     db.commit()
 
     return {"message": "Documents added successfully", "documents": documents}
+
 
 @app.get("/api/contracts/tenant/{tenant_id}")
 def get_contracts_by_tenant(tenant_id: int, db: Session = Depends(get_db)):
@@ -237,38 +277,40 @@ def get_contracts_by_tenant(tenant_id: int, db: Session = Depends(get_db)):
     # Construct the response with documents and lock name included
     result = []
     for contract in contracts:
-        result.append({
-            "id": contract.id,
-            "lock_id": contract.lock_id,
-            "name": contract.lock.lock_name,  # Include lock_name
-            "tenant_id": contract.tenant_id,
-            "contract_number": contract.contract_number,
-            "start_date": contract.start_date,
-            "end_date": contract.end_date,
-            "status": contract.status,
-            "rent_rate": contract.rent_rate,
-            "water_rate": contract.water_rate,
-            "electric_rate": contract.electric_rate,
-            "advance": contract.advance,
-            "deposit": contract.deposit,
-            "documents": [
-                {
-                    "id": doc.id,
-                    "contract_type": doc.contract_type,
-                    "filename": doc.filename,
-                    "path": doc.path,
-                }
-                for doc in contract.documents
-            ]
-        })
+        result.append(
+            {
+                "id": contract.id,
+                "lock_id": contract.lock_id,
+                "name": contract.lock.lock_name,  # Include lock_name
+                "tenant_id": contract.tenant_id,
+                "contract_number": contract.contract_number,
+                "start_date": contract.start_date,
+                "end_date": contract.end_date,
+                "status": contract.status,
+                "rent_rate": contract.rent_rate,
+                "water_rate": contract.water_rate,
+                "electric_rate": contract.electric_rate,
+                "advance": contract.advance,
+                "deposit": contract.deposit,
+                "documents": [
+                    {
+                        "id": doc.id,
+                        "contract_type": doc.contract_type,
+                        "filename": doc.filename,
+                        "path": doc.path,
+                    }
+                    for doc in contract.documents
+                ],
+            }
+        )
 
     return result
+
+
 # Bill Endpoints
 @app.post("/api/bills")
 def create_bill_api(bill_data: dict, db: Session = Depends(get_db)):
     return create_bill(db, bill_data)
-
-
 
 
 # Zone Endpoints
@@ -276,9 +318,11 @@ def create_bill_api(bill_data: dict, db: Session = Depends(get_db)):
 def create_zone_api(zone_data: dict, db: Session = Depends(get_db)):
     return create_zone(db, zone_data)
 
+
 @app.get("/api/zones")
 def get_zones_api(db: Session = Depends(get_db)):
     return get_zones(db)
+
 
 @app.get("/api/zones/{zone_id}")
 def get_zone_api(zone_id: int, db: Session = Depends(get_db)):
@@ -287,12 +331,14 @@ def get_zone_api(zone_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Zone not found")
     return zone
 
+
 @app.put("/api/zones/{zone_id}")
 def update_zone_api(zone_id: int, zone_data: dict, db: Session = Depends(get_db)):
     updated_zone = update_zone(db, zone_id, zone_data)
     if not updated_zone:
         raise HTTPException(status_code=404, detail="Zone not found")
     return updated_zone
+
 
 @app.delete("/api/zones/{zone_id}")
 def delete_zone_api(zone_id: int, db: Session = Depends(get_db)):
@@ -301,17 +347,19 @@ def delete_zone_api(zone_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Zone not found")
     return {"message": "Zone deleted successfully"}
 
-@app.get('/api/contracts/tenant/{tenant_id}', )
+
+@app.get(
+    "/api/contracts/tenant/{tenant_id}",
+)
 def get_contracts_by_tenant_id(tenant_id: int, db: Session = Depends(get_db)):
     contracts = db.query(Contract).filter(Contract.tenant_id == tenant_id).all()
     result = []
     for contract in contracts:
         documents = db.query(Document).filter(Document.contract_id == contract.id).all()
         contract_data = contract.__dict__
-        contract_data['documents'] = [doc.__dict__ for doc in documents]
+        contract_data["documents"] = [doc.__dict__ for doc in documents]
         result.append(contract_data)
     return result
-
 
 
 # @app.get("/api/locks-with-contracts", response_model=List[dict])
@@ -388,13 +436,15 @@ def get_contracts_by_tenant_id(tenant_id: int, db: Session = Depends(get_db)):
 #             "profile_image": lock.profile_image,
 #             "contract_id": lock.contract_id,
 #             "contract_name": lock.contract_name
-         
+
 #         })
 
 #     return result
 
 
 from sqlalchemy.orm import joinedload
+
+
 @app.get("/api/locks-with-contracts", response_model=List[dict])
 def get_locks_with_contracts(db: Session = Depends(get_db)):
     # Subquery to select the latest active contract or NULL for each lock
@@ -415,7 +465,7 @@ def get_locks_with_contracts(db: Session = Depends(get_db)):
         .filter(
             and_(
                 LockHasContract.deleted_at.is_(None),  # Exclude deleted contracts
-                LockHasContract.status == "active"    # Only include active contracts
+                LockHasContract.status == "active",  # Only include active contracts
             )
         )
         .subquery()
@@ -452,9 +502,17 @@ def get_locks_with_contracts(db: Session = Depends(get_db)):
             Meter.meter_serial,
         )
         .outerjoin(subquery, Lock.id == subquery.c.lock_id)  # Join locks with subquery
-        .outerjoin(LockReserve, and_(Lock.id == LockReserve.lock_id, LockReserve.deleted_at.is_(None)))  # Join locks with LockReserve
-        .outerjoin(LockHasMeter, and_(Lock.id == LockHasMeter.lock_id, LockHasMeter.deleted_at.is_(None)))  # Join locks with LockHasMeter
-        .outerjoin(Meter, and_(Meter.id == LockHasMeter.meter_id, Meter.deleted_at.is_(None)))  # Join meters
+        .outerjoin(
+            LockReserve,
+            and_(Lock.id == LockReserve.lock_id, LockReserve.deleted_at.is_(None)),
+        )  # Join locks with LockReserve
+        .outerjoin(
+            LockHasMeter,
+            and_(Lock.id == LockHasMeter.lock_id, LockHasMeter.deleted_at.is_(None)),
+        )  # Join locks with LockHasMeter
+        .outerjoin(
+            Meter, and_(Meter.id == LockHasMeter.meter_id, Meter.deleted_at.is_(None))
+        )  # Join meters
         .order_by(Lock.id.desc())
     ).all()
 
@@ -471,13 +529,18 @@ def get_locks_with_contracts(db: Session = Depends(get_db)):
                 "size": lock.size,
                 "active": lock.active,
                 "contract_status": "active" if lock.contract_id else None,
-                "tenant_name": f"{lock.tenant_first_name} {lock.tenant_last_name}" if lock.tenant_first_name else None,
+                "tenant_name": (
+                    f"{lock.tenant_first_name} {lock.tenant_last_name}"
+                    if lock.tenant_first_name
+                    else None
+                ),
                 "days_left": (
                     (lock.end_date - datetime.utcnow().date()).days
                     if lock.end_date
                     else None
                 ),
-                "is_near_expiry": lock.end_date is not None and (lock.end_date - datetime.utcnow().date()).days <= 30,
+                "is_near_expiry": lock.end_date is not None
+                and (lock.end_date - datetime.utcnow().date()).days <= 30,
                 "start_date": lock.start_date,
                 "end_date": lock.end_date,
                 "contract_number": lock.contract_number,
@@ -488,25 +551,30 @@ def get_locks_with_contracts(db: Session = Depends(get_db)):
                 "meters": [],  # Initialize meters list
             }
         if lock.reserve_id:
-            result[lock_id]["lock_reserves"].append({
-                "reserve_id": lock.reserve_id,
-                "status": lock.reserve_status,
-                "contract_name": lock.reserve_contract_name,
-                "contract_number": lock.reserve_contract_number,
-                "deposit": lock.reserve_deposit,
-                "advance": lock.reserve_advance,
-                "created_at": lock.reserve_created_at,
-                "contract_note": lock.reserve_contract_note,
-            })
+            result[lock_id]["lock_reserves"].append(
+                {
+                    "reserve_id": lock.reserve_id,
+                    "status": lock.reserve_status,
+                    "contract_name": lock.reserve_contract_name,
+                    "contract_number": lock.reserve_contract_number,
+                    "deposit": lock.reserve_deposit,
+                    "advance": lock.reserve_advance,
+                    "created_at": lock.reserve_created_at,
+                    "contract_note": lock.reserve_contract_note,
+                }
+            )
         if lock.meter_id:
-            result[lock_id]["meters"].append({
-                "meter_id": lock.meter_id,
-                "meter_type": lock.meter_type,
-                "meter_number": lock.meter_number,
-                "meter_serial": lock.meter_serial,
-            })
+            result[lock_id]["meters"].append(
+                {
+                    "meter_id": lock.meter_id,
+                    "meter_type": lock.meter_type,
+                    "meter_number": lock.meter_number,
+                    "meter_serial": lock.meter_serial,
+                }
+            )
 
     return list(result.values())
+
 
 @app.get("/api/contracts/non_expired")
 def get_non_expired_contracts(db: Session = Depends(get_db)):
@@ -517,8 +585,6 @@ def get_non_expired_contracts(db: Session = Depends(get_db)):
     return contracts
 
 
-
-
 @app.post("/api/lock_has_contracts")
 def bind_contract(request: BindContractRequest, db: Session = Depends(get_db)):
     # Check if there is an existing active contract for the lock
@@ -527,7 +593,7 @@ def bind_contract(request: BindContractRequest, db: Session = Depends(get_db)):
         .filter(
             LockHasContract.lock_id == request.lock_id,
             LockHasContract.deleted_at.is_(None),  # Ensure it's not deleted
-            LockHasContract.status == 'active'    # Ensure it's active
+            LockHasContract.status == "active",  # Ensure it's active
         )
         .join(Contract, LockHasContract.contract_id == Contract.id)
         .filter(Contract.end_date >= datetime.utcnow().date())  # Contract not expired
@@ -536,8 +602,7 @@ def bind_contract(request: BindContractRequest, db: Session = Depends(get_db)):
 
     if existing_lock_contract:
         raise HTTPException(
-            status_code=400,
-            detail="An active contract already exists for this lock."
+            status_code=400, detail="An active contract already exists for this lock."
         )
 
     # Check if there is an expired contract for the lock and update its status
@@ -546,7 +611,7 @@ def bind_contract(request: BindContractRequest, db: Session = Depends(get_db)):
         .filter(
             LockHasContract.lock_id == request.lock_id,
             LockHasContract.deleted_at.is_(None),
-            LockHasContract.status == 'active'
+            LockHasContract.status == "active",
         )
         .join(Contract, LockHasContract.contract_id == Contract.id)
         .filter(Contract.end_date < datetime.utcnow().date())  # Contract expired
@@ -555,34 +620,36 @@ def bind_contract(request: BindContractRequest, db: Session = Depends(get_db)):
 
     if expired_lock_contract:
         # Mark the expired contract as 'expired'
-        expired_lock_contract.status = 'expired'
+        expired_lock_contract.status = "expired"
         expired_lock_contract.updated_at = datetime.utcnow()
         db.commit()
 
     # Bind the new contract to the lock
     new_entry = LockHasContract(
-        lock_id=request.lock_id,
-        contract_id=request.contract_id,
-        status=request.status
+        lock_id=request.lock_id, contract_id=request.contract_id, status=request.status
     )
     db.add(new_entry)
     db.commit()
 
     return {"message": "Contract successfully bound to lock."}
 
+
 @app.post("/api/contracts/{contract_id}/cancel")
 def cancel_contract(contract_id: int, db: Session = Depends(get_db)):
     # Find the active LockHasContract entry for the provided contract
-    lock_contract = db.query(LockHasContract).filter(
-        LockHasContract.contract_id == contract_id,
-        LockHasContract.status == "active",
-        LockHasContract.deleted_at.is_(None)  # Ensure it is not already cancelled
-    ).first()
+    lock_contract = (
+        db.query(LockHasContract)
+        .filter(
+            LockHasContract.contract_id == contract_id,
+            LockHasContract.status == "active",
+            LockHasContract.deleted_at.is_(None),  # Ensure it is not already cancelled
+        )
+        .first()
+    )
 
     if not lock_contract:
         raise HTTPException(
-            status_code=404,
-            detail="No active contract found for the specified lock."
+            status_code=404, detail="No active contract found for the specified lock."
         )
 
     # Update the status and mark as cancelled
@@ -592,13 +659,16 @@ def cancel_contract(contract_id: int, db: Session = Depends(get_db)):
 
     return {"message": "Contract successfully cancelled."}
 
+
 @app.post("/api/meters")
 def create_meter_api(meter_data: dict, db: Session = Depends(get_db)):
     return create_meter(db, meter_data)
 
+
 @app.get("/api/meters")
 def get_meters_api(db: Session = Depends(get_db)):
     return get_meters(db)
+
 
 @app.get("/api/meters/{meter_id}")
 def get_meter_api(meter_id: int, db: Session = Depends(get_db)):
@@ -606,6 +676,7 @@ def get_meter_api(meter_id: int, db: Session = Depends(get_db)):
     if not meter:
         raise HTTPException(status_code=404, detail="Meter not found")
     return meter
+
 
 # # Meter Usages Endpoints
 # @app.post("/api/meter_usages")
@@ -631,18 +702,18 @@ def get_meter_api(meter_id: int, db: Session = Depends(get_db)):
 
 # # Meter Usages Endpoints
 
+
 @app.post("/api/meter_usage")
 async def create_meter_usage_api(
-    asset_tag: str,
-    meter_end: int,
-    img_path: str = None,
-    db: Session = Depends(get_db)
+    asset_tag: str, meter_end: int, img_path: str = None, db: Session = Depends(get_db)
 ):
     try:
         # Fetch the meter ID based on the asset_tag
         meter = db.query(Meter).filter(Meter.asset_tag == asset_tag).first()
         if not meter:
-            raise HTTPException(status_code=404, detail="Meter with given asset tag not found")
+            raise HTTPException(
+                status_code=404, detail="Meter with given asset tag not found"
+            )
 
         # Get the current month and year
         current_month = datetime.now().month
@@ -654,14 +725,17 @@ async def create_meter_usage_api(
             .filter(
                 MeterUsage.meter_id == meter.id,
                 MeterUsage.deleted_at == None,
-                extract('month', MeterUsage.created_at) == current_month,
-                extract('year', MeterUsage.created_at) == current_year
+                extract("month", MeterUsage.created_at) == current_month,
+                extract("year", MeterUsage.created_at) == current_year,
             )
             .first()
         )
 
         if existing_usage:
-            return {"message": "Meter usage for this month already exists", "usage_id": existing_usage.id}
+            return {
+                "message": "Meter usage for this month already exists",
+                "usage_id": existing_usage.id,
+            }
 
         # Get the latest meter usage for this meter
         last_usage = (
@@ -676,7 +750,9 @@ async def create_meter_usage_api(
 
         # Ensure the new meter_end is greater than or equal to meter_start
         if meter_end < meter_start:
-            raise HTTPException(status_code=400, detail="End reading cannot be less than start reading")
+            raise HTTPException(
+                status_code=400, detail="End reading cannot be less than start reading"
+            )
 
         # Calculate the meter usage for this month
         meter_usage = meter_end - meter_start
@@ -702,6 +778,7 @@ async def create_meter_usage_api(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/api/upload_bill")
 async def upload_bill(file: UploadFile = File(...)):
     try:
@@ -721,21 +798,22 @@ async def upload_bill(file: UploadFile = File(...)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
-    
-    
+
+
 @app.get("/api/meter_usages/{meter_id}")
 def get_meter_usages_api(meter_id: int, db: Session = Depends(get_db)):
-    
-    usage = db.query(MeterUsage).filter(
-        MeterUsage.meter_id == meter_id,
-        MeterUsage.deleted_at.is_(None)
-    ).order_by(MeterUsage.created_at.desc()).first()
+
+    usage = (
+        db.query(MeterUsage)
+        .filter(MeterUsage.meter_id == meter_id, MeterUsage.deleted_at.is_(None))
+        .order_by(MeterUsage.created_at.desc())
+        .first()
+    )
     if not usage:
         raise HTTPException(status_code=404, detail="No usage found for this meter")
 
-
-
     return usage  # FastAPI will handle serialization to the Pydantic model
+
 
 # @app.get("/api/meter_usages/{meter_id}/{month}")
 # def get_meter_usage_by_month(meter_id: int, month: str, db: Session = Depends(get_db)):
@@ -767,6 +845,7 @@ def get_meter_usages_api(meter_id: int, db: Session = Depends(get_db)):
 #         MeterUsage.deleted_at.is_(None)
 #     ).order_by(MeterUsage.created_at.desc()).first()
 
+
 #     return {
 #         "meter_id": meter_id,
 #         "meter_start": latest_usage.meter_end if latest_usage else 0,
@@ -786,18 +865,20 @@ def get_meter_usages(month: str, db: Session = Depends(get_db)):
     try:
         year, month = map(int, month.split("-"))
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid month format. Use YYYY-MM.")
+        raise HTTPException(
+            status_code=400, detail="Invalid month format. Use YYYY-MM."
+        )
 
     # Subquery: Last confirmed or previous meter_end per meter
     subquery_last_end = (
         db.query(
             MeterUsage.meter_id,
             func.max(MeterUsage.date_check).label("last_date_check"),
-            func.max(MeterUsage.meter_end).label("last_meter_end")
+            func.max(MeterUsage.meter_end).label("last_meter_end"),
         )
         .filter(
             MeterUsage.deleted_at.is_(None),
-            MeterUsage.status == "CONFIRMED"  # Only consider CONFIRMED records
+            MeterUsage.status == "CONFIRMED",  # Only consider CONFIRMED records
         )
         .group_by(MeterUsage.meter_id)
         .subquery()
@@ -822,7 +903,7 @@ def get_meter_usages(month: str, db: Session = Depends(get_db)):
             MeterUsage.deleted_at,
             MeterUsage.date_check,
             MeterUsage.note,
-            subquery_last_end.c.last_meter_end.label("default_meter_start")
+            subquery_last_end.c.last_meter_end.label("default_meter_start"),
         )
         .outerjoin(
             MeterUsage,
@@ -830,13 +911,10 @@ def get_meter_usages(month: str, db: Session = Depends(get_db)):
                 Meter.id == MeterUsage.meter_id,
                 extract("year", MeterUsage.date_check) == year,
                 extract("month", MeterUsage.date_check) == month,
-                MeterUsage.deleted_at.is_(None)
-            )
+                MeterUsage.deleted_at.is_(None),
+            ),
         )
-        .outerjoin(
-            subquery_last_end,
-            Meter.id == subquery_last_end.c.meter_id
-        )
+        .outerjoin(subquery_last_end, Meter.id == subquery_last_end.c.meter_id)
     )
 
     # Process query results
@@ -845,29 +923,31 @@ def get_meter_usages(month: str, db: Session = Depends(get_db)):
         meter_start = (
             row.default_meter_start if row.status == "UNCONFIRMED" else row.meter_start
         )
-        results.append({
-            "meter_id": row.Meter.id,
-            "meter_type": row.Meter.meter_type,
-            "meter_number": row.Meter.meter_number,
-            "meter_serial": row.Meter.meter_serial,
-            "meter_asset_tag": row.Meter.asset_tag,
-            "note": row.Meter.note,
-            "meter_start": meter_start if meter_start is not None else 0,
-            "meter_end": row.meter_end,
-            "meter_usage": row.meter_usage,
-            "img_path": row.img_path,
-            "status": row.status,
-            "client_id": row.client_id,
-            "company_id": row.company_id,
-            "created_by": row.created_by,
-            "confirmed_by": row.confirmed_by,
-            "created_at": row.created_at,
-            "updated_at": row.updated_at,
-            "deleted_at": row.deleted_at,
-            "date_check": row.date_check,
-            "meter_usage_id": row.meter_usage_id,
-            "note": row.note
-        })
+        results.append(
+            {
+                "meter_id": row.Meter.id,
+                "meter_type": row.Meter.meter_type,
+                "meter_number": row.Meter.meter_number,
+                "meter_serial": row.Meter.meter_serial,
+                "meter_asset_tag": row.Meter.asset_tag,
+                "note": row.Meter.note,
+                "meter_start": meter_start if meter_start is not None else 0,
+                "meter_end": row.meter_end,
+                "meter_usage": row.meter_usage,
+                "img_path": row.img_path,
+                "status": row.status,
+                "client_id": row.client_id,
+                "company_id": row.company_id,
+                "created_by": row.created_by,
+                "confirmed_by": row.confirmed_by,
+                "created_at": row.created_at,
+                "updated_at": row.updated_at,
+                "deleted_at": row.deleted_at,
+                "date_check": row.date_check,
+                "meter_usage_id": row.meter_usage_id,
+                "note": row.note,
+            }
+        )
 
     return results
 
@@ -876,9 +956,10 @@ def get_meter_usages(month: str, db: Session = Depends(get_db)):
 def get_tenant_by_customer_code(customer_code: str, db: Session = Depends(get_db)):
     tenant = db.query(Tenant).filter(Tenant.code == customer_code).first()
     if not tenant:
-        raise HTTPException(status_code=404, detail="Tenant not found with the provided customer_code.")
+        raise HTTPException(
+            status_code=404, detail="Tenant not found with the provided customer_code."
+        )
     return tenant
-
 
 
 class LineUpdate(BaseModel):
@@ -893,8 +974,10 @@ def update_tenant_from_line(line_data: LineUpdate, db: Session = Depends(get_db)
     # Find the tenant by customer_code
     tenant = db.query(Tenant).filter(Tenant.code == line_data.customer_code).first()
     if not tenant:
-        raise HTTPException(status_code=404, detail="Tenant not found with the provided customer_code.")
-    
+        raise HTTPException(
+            status_code=404, detail="Tenant not found with the provided customer_code."
+        )
+
     # Update tenant fields
     tenant.profile_image = line_data.line_img
     tenant.line_img = line_data.line_img
@@ -912,31 +995,41 @@ def update_tenant_from_line(line_data: LineUpdate, db: Session = Depends(get_db)
     return {"message": "Tenant updated successfully", "tenant": tenant}
 
 
-
 class LockReserveCreate(BaseModel):
     lock_id: int
     status: Optional[str] = "new"
     contract_name: Optional[str]
     deposit: Optional[float] = 0.0
     advance: Optional[float] = 0.0
-    contract_type : Optional[str]
-    contract_number : Optional[str]
-    contract_note : Optional[str]
+    contract_type: Optional[str]
+    contract_number: Optional[str]
+    contract_note: Optional[str]
+
 
 class LockReserveUpdate(BaseModel):
     deleted_at: str
+
+
 @app.get("/api/locks-reserves")
 def read_locks_with_reserves(db: Session = Depends(get_db)):
     """
     Fetch locks and their associated reserves grouped by lock_id,
-    filtering out reserves where deleted_at IS NOT NULL, 
+    filtering out reserves where deleted_at IS NOT NULL,
     and include associated attachments.
     """
     # Query locks with joined lock reserves and their attachments
-    locks = db.query(Lock).options(
-        joinedload(Lock.lock_reserves.and_(LockReserve.deleted_at.is_(None)))
-        .joinedload(LockReserve.attachments)  # Load attachments for each reserve
-    ).order_by(Lock.id).all()
+    locks = (
+        db.query(Lock)
+        .options(
+            joinedload(
+                Lock.lock_reserves.and_(LockReserve.deleted_at.is_(None))
+            ).joinedload(
+                LockReserve.attachments
+            )  # Load attachments for each reserve
+        )
+        .order_by(Lock.id)
+        .all()
+    )
 
     # Structure the response data
     result = [
@@ -966,12 +1059,13 @@ def read_locks_with_reserves(db: Session = Depends(get_db)):
                     ],
                 }
                 for reserve in lock.lock_reserves
-            ]
+            ],
         }
         for lock in locks
     ]
 
     return {"data": result}
+
 
 @app.post("/api/lock-reserves", response_model=dict)
 def add_lock_reserve(reserve: LockReserveCreate, db: Session = Depends(get_db)):
@@ -1013,7 +1107,9 @@ def add_lock_reserve(reserve: LockReserveCreate, db: Session = Depends(get_db)):
 
 
 @app.put("/api/lock-reserves/{reserve_id}", response_model=dict)
-def remove_lock_reserve(reserve_id: int, update: LockReserveUpdate, db: Session = Depends(get_db)):
+def remove_lock_reserve(
+    reserve_id: int, update: LockReserveUpdate, db: Session = Depends(get_db)
+):
     """
     Remove a lock reserve (soft delete).
     """
@@ -1029,7 +1125,9 @@ def remove_lock_reserve(reserve_id: int, update: LockReserveUpdate, db: Session 
 
         return {"message": "Lock reserve removed successfully", "reserve": reserve}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to remove lock reserve: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to remove lock reserve: {str(e)}"
+        )
 
 
 class LockReserveAttachmentBase(BaseModel):
@@ -1041,18 +1139,9 @@ class LockReserveAttachmentCreate(LockReserveAttachmentBase):
     pass
 
 
-
-
-
-
-
-
-
 @app.post("/api/lock-reserves/{lock_reserve_id}/attachments")
 def upload_attachment(
-    lock_reserve_id: int,
-    file: UploadFile,
-    db: Session = Depends(get_db)
+    lock_reserve_id: int, file: UploadFile, db: Session = Depends(get_db)
 ):
     # Generate a unique filename
     file_extension = os.path.splitext(file.filename)[1]
@@ -1080,14 +1169,20 @@ def upload_attachment(
 def read_locks_with_reserves(lock_id: int, db: Session = Depends(get_db)):
     """
     Fetch lock and its associated reserves grouped by lock_id,
-    filtering out reserves where deleted_at IS NOT NULL, 
+    filtering out reserves where deleted_at IS NOT NULL,
     and include associated attachments.
     """
     # Query the lock with the specified lock_id
-    lock = db.query(Lock).options(
-        joinedload(Lock.lock_reserves)
-        .joinedload(LockReserve.attachments)  # Load attachments for each reserve
-    ).filter(Lock.id == lock_id).first()
+    lock = (
+        db.query(Lock)
+        .options(
+            joinedload(Lock.lock_reserves).joinedload(
+                LockReserve.attachments
+            )  # Load attachments for each reserve
+        )
+        .filter(Lock.id == lock_id)
+        .first()
+    )
 
     if not lock:
         return {"message": f"Lock with ID {lock_id} not found", "data": []}
@@ -1119,7 +1214,7 @@ def read_locks_with_reserves(lock_id: int, db: Session = Depends(get_db)):
                 ],
             }
             for reserve in lock.lock_reserves
-        ]
+        ],
     }
 
     return {"data": result}
@@ -1141,8 +1236,7 @@ class MeterUsageUpdate(BaseModel):
 
 @app.put("/api/meter_usages/update")
 def update_meter_usage(
-    meter_update: MeterUsageUpdate = Body(...),
-    db: Session = Depends(get_db)
+    meter_update: MeterUsageUpdate = Body(...), db: Session = Depends(get_db)
 ):
     """
     Update or create meter usages based on the provided data.
@@ -1153,11 +1247,18 @@ def update_meter_usage(
         for item in meter_update.data:
             if item.meter_usage_id:
                 # Fetch the meter usage record by ID
-                meter_usage = db.query(MeterUsage).filter(MeterUsage.id == item.meter_usage_id).first()
+                meter_usage = (
+                    db.query(MeterUsage)
+                    .filter(MeterUsage.id == item.meter_usage_id)
+                    .first()
+                )
 
                 # If meter usage record not found, raise an error
                 if not meter_usage:
-                    raise HTTPException(status_code=404, detail=f"Meter usage ID {item.meter_usage_id} not found")
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Meter usage ID {item.meter_usage_id} not found",
+                    )
 
                 # Update the fields
                 meter_usage.meter_start = item.meter_start
@@ -1183,18 +1284,20 @@ def update_meter_usage(
                 db.add(meter_usage)
 
             # Add the record details to the results
-            results.append({
-                "meter_usage_id": meter_usage.id,
-                "meter_id": meter_usage.meter_id,
-                "meter_start": meter_usage.meter_start,
-                "meter_end": meter_usage.meter_end,
-                "meter_usage": meter_usage.meter_usage,
-                "note": meter_usage.note,
-                "status": meter_usage.status,
-                "updated_at": meter_usage.updated_at,
-                "created_at": meter_usage.created_at,
-                "date_check": meter_usage.date_check,
-            })
+            results.append(
+                {
+                    "meter_usage_id": meter_usage.id,
+                    "meter_id": meter_usage.meter_id,
+                    "meter_start": meter_usage.meter_start,
+                    "meter_end": meter_usage.meter_end,
+                    "meter_usage": meter_usage.meter_usage,
+                    "note": meter_usage.note,
+                    "status": meter_usage.status,
+                    "updated_at": meter_usage.updated_at,
+                    "created_at": meter_usage.created_at,
+                    "date_check": meter_usage.date_check,
+                }
+            )
 
         # Commit the changes to the database
         db.commit()
@@ -1206,6 +1309,7 @@ def update_meter_usage(
 
     return {"message": "Meter usages updated successfully", "data": results}
 
+
 class AddMeterToLockSchema(BaseModel):
     lock_id: int
     meter_id: int
@@ -1214,9 +1318,11 @@ class AddMeterToLockSchema(BaseModel):
     company_id: int = None
     client_id: int = None
 
+
 class RemoveMeterFromLockSchema(BaseModel):
     lock_id: int
     meter_id: int
+
 
 @app.post("/api/lock-add-meter")
 def add_meter_to_lock(data: AddMeterToLockSchema, db: Session = Depends(get_db)):
@@ -1236,12 +1342,14 @@ def add_meter_to_lock(data: AddMeterToLockSchema, db: Session = Depends(get_db))
         .filter(
             LockHasMeter.lock_id == data.lock_id,
             LockHasMeter.meter_id == data.meter_id,
-            LockHasMeter.deleted_at.is_(None)  # Only consider active relationships
+            LockHasMeter.deleted_at.is_(None),  # Only consider active relationships
         )
         .first()
     )
     if existing_relationship:
-        raise HTTPException(status_code=400, detail="Meter is already associated with this lock")
+        raise HTTPException(
+            status_code=400, detail="Meter is already associated with this lock"
+        )
 
     # Create the relationship
     new_relationship = LockHasMeter(
@@ -1256,20 +1364,29 @@ def add_meter_to_lock(data: AddMeterToLockSchema, db: Session = Depends(get_db))
     db.add(new_relationship)
     db.commit()
     db.refresh(new_relationship)
-    return {"message": "Meter added to lock successfully", "relationship": new_relationship}
+    return {
+        "message": "Meter added to lock successfully",
+        "relationship": new_relationship,
+    }
 
 
 # Remove a meter from a lock
 @app.delete("/api/lock-remove-meter")
-def remove_meter_from_lock(data: RemoveMeterFromLockSchema, db: Session = Depends(get_db)):
+def remove_meter_from_lock(
+    data: RemoveMeterFromLockSchema, db: Session = Depends(get_db)
+):
     # Find the relationship
     relationship = (
         db.query(LockHasMeter)
-        .filter(LockHasMeter.lock_id == data.lock_id, LockHasMeter.meter_id == data.meter_id)
+        .filter(
+            LockHasMeter.lock_id == data.lock_id, LockHasMeter.meter_id == data.meter_id
+        )
         .first()
     )
     if not relationship:
-        raise HTTPException(status_code=404, detail="Association between lock and meter not found")
+        raise HTTPException(
+            status_code=404, detail="Association between lock and meter not found"
+        )
 
     # Soft delete by setting deleted_at timestamp
     relationship.deleted_at = datetime.utcnow()
@@ -1286,13 +1403,16 @@ def get_available_meters(db: Session = Depends(get_db)):
         # Query meters that are not linked to any active lock association
         available_meters = (
             db.query(Meter)
-            .outerjoin(LockHasMeter, and_(
-                Meter.id == LockHasMeter.meter_id,
-                LockHasMeter.deleted_at.is_(None)  # Active lock-meter associations
-            ))
+            .outerjoin(
+                LockHasMeter,
+                and_(
+                    Meter.id == LockHasMeter.meter_id,
+                    LockHasMeter.deleted_at.is_(None),  # Active lock-meter associations
+                ),
+            )
             .filter(
                 LockHasMeter.meter_id.is_(None),  # Meters not associated with locks
-                Meter.deleted_at.is_(None)        # Meters not soft-deleted
+                Meter.deleted_at.is_(None),  # Meters not soft-deleted
             )
             .all()
         )
@@ -1308,12 +1428,14 @@ def get_available_meters(db: Session = Depends(get_db)):
             }
             for meter in available_meters
         ]
-        
+
         return result
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch available meters: {str(e)}")
-    
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch available meters: {str(e)}"
+        )
+
 
 # version แบบดึง lock เป็นที่ตั้ง
 # @app.get("/api/eligible-locks-for-billing")
@@ -1443,8 +1565,7 @@ def get_locks_for_billing(
     db: Session = Depends(get_db),
 ):
     """
-    Fetch contracts with associated locks and meter usage for the given month,
-    ensuring rent and usage are calculated correctly based on meter type.
+    Fetch contracts with associated locks, meter usage, and billing details for the given month.
     """
     try:
         # Define date range for the given year and month
@@ -1457,46 +1578,70 @@ def get_locks_for_billing(
 
         # Query data from the database
         query = (
-            db.query(Lock, Contract, Tenant, MeterUsage, Meter)
-            .outerjoin(LockHasContract, and_(
-                Lock.id == LockHasContract.lock_id,
-                LockHasContract.deleted_at.is_(None),
-            ))
-            .outerjoin(Contract, and_(
-                LockHasContract.contract_id == Contract.id,
-                Contract.status == "Active",
-                Contract.start_date <= last_day,
-                Contract.end_date >= first_day,
-            ))
+            db.query(Lock, Contract, Tenant, MeterUsage, Meter, Bill)
+            .outerjoin(
+                LockHasContract,
+                and_(
+                    Lock.id == LockHasContract.lock_id,
+                    LockHasContract.deleted_at.is_(None),
+                ),
+            )
+            .outerjoin(
+                Contract,
+                and_(
+                    LockHasContract.contract_id == Contract.id,
+                    Contract.status == "Active",
+                    Contract.start_date <= last_day,
+                    Contract.end_date >= first_day,
+                ),
+            )
             .outerjoin(Tenant, Tenant.id == Contract.tenant_id)
-            .outerjoin(LockHasMeter, and_(
-                Lock.id == LockHasMeter.lock_id,
-                LockHasMeter.deleted_at.is_(None),
-            ))
+            .outerjoin(
+                LockHasMeter,
+                and_(
+                    Lock.id == LockHasMeter.lock_id,
+                    LockHasMeter.deleted_at.is_(None),
+                ),
+            )
             .outerjoin(Meter, LockHasMeter.meter_id == Meter.id)
-            .outerjoin(MeterUsage, and_(
-                MeterUsage.meter_id == Meter.id,
-                MeterUsage.date_check >= first_day,
-                MeterUsage.date_check <= last_day,
-                MeterUsage.status == "CONFIRMED",
-            ))
+            .outerjoin(
+                MeterUsage,
+                and_(
+                    MeterUsage.meter_id == Meter.id,
+                    MeterUsage.date_check >= first_day,
+                    MeterUsage.date_check <= last_day,
+                    MeterUsage.status == "CONFIRMED",
+                ),
+            )
+            .outerjoin(
+                Bill,
+                and_(
+                    Bill.contract_id == Contract.id,
+                    Bill.date_check >= first_day,
+                    Bill.date_check <= last_day,
+                    Bill.deleted_at.is_(None),
+                ),
+            )
             .all()
         )
 
         # Organize data into contracts and related locks
         contracts_dict = {}
-        for lock, contract, tenant, meter_usage, meter in query:
+        for lock, contract, tenant, meter_usage, meter, bill in query:
             if not contract:
                 continue
 
             contract_number = contract.contract_number
             if contract_number not in contracts_dict:
                 contracts_dict[contract_number] = {
+                    "contract_id": contract.id,
                     "contract_number": contract_number,
                     "contract_name": contract.contract_name,
                     "start_date": contract.start_date,
                     "end_date": contract.end_date,
-                    "tenant_name": f"{tenant.first_name} {tenant.last_name}" if tenant else None,
+                    "tenant_name": (
+                        f"{tenant.first_name} {tenant.last_name}" if tenant else None
+                    ),
                     "tenant_contact": tenant.contact if tenant else None,
                     "tenant_phone": tenant.phone if tenant else None,
                     "tenant_address": tenant.address if tenant else None,
@@ -1504,12 +1649,27 @@ def get_locks_for_billing(
                     "tenant_profile_image": tenant.profile_image if tenant else None,
                     "locks": [],
                     "meter_usages": [],
+                    "bill": None,  # Placeholder for bill information
                     "calculations": {
                         "total_water_bill": 0,
                         "total_electric_bill": 0,
                         "total_rent": contract.rent_rate,  # Add rent directly
                         "total_bill": contract.rent_rate,  # Initialize with rent
                     },
+                }
+
+            # Add bill details if available
+            if bill:
+                contracts_dict[contract_number]["bill"] = {
+                    "bill_id": bill.id,
+                    "bill_number": bill.bill_number,
+                    "bill_type": bill.bill_type,
+                    "ref_number": bill.ref_number,
+                    "bill_name": bill.bill_name,
+                    "date_check": bill.date_check,
+                    "total": bill.total,
+                    "status": bill.status,
+                    "note": bill.note,
                 }
 
             # Add lock details
@@ -1528,35 +1688,43 @@ def get_locks_for_billing(
                 rate = 0
                 if meter.meter_type == "Water Meter":
                     rate = contract.water_rate or 0
-                    contracts_dict[contract_number]["calculations"]["total_water_bill"] += meter_usage.meter_usage * rate
+                    contracts_dict[contract_number]["calculations"][
+                        "total_water_bill"
+                    ] += (meter_usage.meter_usage * rate)
                 elif meter.meter_type == "Electric Meter":
                     rate = contract.electric_rate or 0
-                    contracts_dict[contract_number]["calculations"]["total_electric_bill"] += meter_usage.meter_usage * rate
+                    contracts_dict[contract_number]["calculations"][
+                        "total_electric_bill"
+                    ] += (meter_usage.meter_usage * rate)
 
-                contracts_dict[contract_number]["meter_usages"].append({
-                    "lock_id": lock.id,
-                    "lock_name": lock.lock_name,
-                    "meter_usage_id": meter_usage.id,
-                    "meter_id": meter_usage.meter_id,
-                    "meter_start": meter_usage.meter_start,
-                    "meter_end": meter_usage.meter_end,
-                    "meter_usage": meter_usage.meter_usage,
-                    "date_check": meter_usage.date_check,
-                    "meter_type": meter.meter_type,
-                })
+                contracts_dict[contract_number]["meter_usages"].append(
+                    {
+                        "lock_id": lock.id,
+                        "lock_name": lock.lock_name,
+                        "meter_usage_id": meter_usage.id,
+                        "meter_id": meter_usage.meter_id,
+                        "meter_start": meter_usage.meter_start,
+                        "meter_end": meter_usage.meter_end,
+                        "meter_usage": meter_usage.meter_usage,
+                        "date_check": meter_usage.date_check,
+                        "meter_type": meter.meter_type,
+                    }
+                )
 
         # Update total bill calculation
         for contract_data in contracts_dict.values():
             contract_data["calculations"]["total_bill"] += (
-                contract_data["calculations"]["total_water_bill"] +
-                contract_data["calculations"]["total_electric_bill"]
+                contract_data["calculations"]["total_water_bill"]
+                + contract_data["calculations"]["total_electric_bill"]
             )
 
         # Convert dict to sorted list for response
         results = sorted(contracts_dict.values(), key=lambda x: x["contract_number"])
 
         if not results:
-            raise HTTPException(status_code=404, detail="No eligible contracts found for billing.")
+            raise HTTPException(
+                status_code=404, detail="No eligible contracts found for billing."
+            )
 
         return results
 
@@ -1564,7 +1732,459 @@ def get_locks_for_billing(
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 
+from decimal import Decimal, ROUND_HALF_UP
+
+
+class BillRequest(BaseModel):
+    contract_id: int
+    year: int
+    month: int
+    discount: float = 0.0
+    vat_percent: float = 7.0
+
+
+class BillResponse(BaseModel):
+    message: str
+    bill_id: int
+    bill_number: str
+    total: str
+    total_with_vat: str
+    water_usage: str
+    electric_usage: str
+    water_price: str
+    electric_price: str
+    discount: str
+    vat_percent: float
+
+
+@app.post("/api/create-bills", response_model=List[BillResponse])
+def create_bills(
+    bills: List[BillRequest],
+    created_by: Optional[int] = None,
+    send_notification_via_line: bool = False,
+    db: Session = Depends(get_db),
+):
+    """
+    Create multiple bills for the provided contracts and months.
+    """
+    results = []
+    try:
+        for bill_data in bills:
+            # Validate contract
+            contract = (
+                db.query(Contract)
+                .filter(
+                    Contract.id == bill_data.contract_id, Contract.deleted_at.is_(None)
+                )
+                .first()
+            )
+            if not contract:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Contract not found: {bill_data.contract_id}",
+                )
+
+            # Validate tenant
+            tenant = db.query(Tenant).filter(Tenant.id == contract.tenant_id).first()
+            if not tenant:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Tenant not found for contract: {bill_data.contract_id}",
+                )
+
+            tenant_code = tenant.code or "00000"
+
+            # Define billing period
+            first_day = datetime(bill_data.year, bill_data.month, 1)
+            last_day = (
+                (
+                    first_day.replace(month=bill_data.month + 1, day=1)
+                    - timedelta(days=1)
+                )
+                if bill_data.month < 12
+                else datetime(bill_data.year, 12, 31)
+            )
+
+            # Check for existing bill
+            existing_bill = (
+                db.query(Bill)
+                .filter(
+                    Bill.contract_id == bill_data.contract_id,
+                    Bill.date_check >= first_day,
+                    Bill.date_check <= last_day,
+                    Bill.deleted_at.is_(None),
+                )
+                .first()
+            )
+
+            if existing_bill:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"A bill already exists for contract {bill_data.contract_id} for {bill_data.month:02}/{bill_data.year}.",
+                )
+
+            # Fetch meter usages based on locks associated with the contract
+            meter_usages = (
+                db.query(MeterUsage, Meter)
+                .join(Meter, MeterUsage.meter_id == Meter.id)
+                .join(LockHasMeter, LockHasMeter.meter_id == Meter.id)
+                .join(Lock, Lock.id == LockHasMeter.lock_id)
+                .join(LockHasContract, LockHasContract.lock_id == Lock.id)
+                .filter(
+                    LockHasContract.contract_id == bill_data.contract_id,
+                    LockHasContract.deleted_at.is_(None),
+                    LockHasMeter.deleted_at.is_(None),
+                    MeterUsage.date_check >= first_day,
+                    MeterUsage.date_check <= last_day,
+                    MeterUsage.status == "CONFIRMED",
+                )
+                .all()
+            )
+
+            total_water_charge = Decimal(0)
+            total_electric_charge = Decimal(0)
+            total_water_usage = Decimal(0)
+            total_electric_usage = Decimal(0)
+
+            for usage, meter in meter_usages:
+                if meter.meter_type == "Water Meter":
+                    rate = Decimal(contract.water_rate or 0)
+                    usage_value = Decimal(usage.meter_usage)
+                    total_water_charge += usage_value * rate
+                    total_water_usage += usage_value
+                elif meter.meter_type == "Electric Meter":
+                    rate = Decimal(contract.electric_rate or 0)
+                    usage_value = Decimal(usage.meter_usage)
+                    total_electric_charge += usage_value * rate
+                    total_electric_usage += usage_value
+
+            # Calculate total charges
+            total_rent = Decimal(contract.rent_rate or 0)
+            total_charges = total_rent + total_water_charge + total_electric_charge
+
+            # Validate and apply discount as a fixed amount
+            if bill_data.discount < 0:
+                raise HTTPException(
+                    status_code=400, detail="Discount cannot be negative."
+                )
+            if bill_data.discount > total_charges:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Discount cannot exceed total charges.",
+                )
+            total_after_discount = total_charges - Decimal(bill_data.discount)
+
+            # Validate and apply VAT to the discounted total
+            if bill_data.vat_percent < 0:
+                raise HTTPException(
+                    status_code=400, detail="VAT percentage cannot be negative."
+                )
+            vat = total_after_discount * Decimal(bill_data.vat_percent / 100)
+            total_with_vat = total_after_discount + vat
+
+            # Round all amounts to 2 decimal places
+            total_rent = total_rent.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            total_water_charge = total_water_charge.quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+            total_electric_charge = total_electric_charge.quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+            total_after_discount = total_after_discount.quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+            vat = vat.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            total_with_vat = total_with_vat.quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+            total_water_usage = total_water_usage.quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+            total_electric_usage = total_electric_usage.quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+
+            # Fetch count of all bills in the system
+            bill_count = db.query(Bill).count() + 1
+
+            # Generate bill number with bill count
+            bill_number = f"BILL-{bill_data.year % 100:02}{bill_data.month:02}-{tenant_code}-{str(contract.contract_number)}-{str(bill_count).zfill(6)}"
+
+            # Create bill object
+            new_bill = Bill(
+                bill_number=bill_number,
+                bill_type="Monthly",
+                ref_number=f"REF-{uuid.uuid4().hex[:6].upper()}",
+                bill_name=f"Monthly Bill for {contract.contract_name} ({bill_data.year}-{bill_data.month:02})",
+                contract_id=bill_data.contract_id,
+                tenant_id=contract.tenant_id,
+                date_check=first_day,
+                rent=total_rent,
+                water=total_water_charge,
+                water_usage=total_water_usage,
+                electric=total_electric_charge,
+                electric_usage=total_electric_usage,
+                vat=vat,
+                discount=Decimal(bill_data.discount),
+                total=total_after_discount,
+                total_vat=total_with_vat,
+                created_by=created_by,
+            )
+
+            db.add(new_bill)
+            db.commit()
+            db.refresh(new_bill)
+
+            if send_notification_via_line and tenant.line_id:
+                try:
+                    
+                    flex_message = {
+                        "type": "flex",
+                        "altText": f"Invoice for Bill {new_bill.bill_number}",
+                        "contents": {
+                            "type": "bubble",
+                            "size": "mega",
+                            "header": {
+                                "type": "box",
+                                "layout": "vertical",
+                                "contents": [
+                                    {
+                                        "type": "image",
+                                        "url": "https://scontent.fbkk5-3.fna.fbcdn.net/v/t39.30808-6/438303751_10233237539737693_4325275099517205966_n.jpg?_nc_cat=105&ccb=1-7&_nc_sid=6ee11a&_nc_eui2=AeH30VpEFjzkwpRLAw-SMAlT5OTQ2qQs1u7k5NDapCzW7nDEsXSAiAURctvDErQjtDw&_nc_ohc=mW0kHecBoWYQ7kNvgFbT-cY&_nc_oc=AdifrZKtA-QAyxZS-7Dvm5THDskYAIa_WDVQjs8pGZUXvNUhROaFI5jmVkdtTEUq6VLkIARDidSWoTxLM_bYyNw1&_nc_zt=23&_nc_ht=scontent.fbkk5-3.fna&_nc_gid=ArjpIh5TG6zgckH7yDfic0F&oh=00_AYDfjZj2BO9PMDnjnRFmY_4ZhpyEasi85D38zQMKjMyzYw&oe=676F1C4F",
+                                        "size": "full",
+                                        "aspectRatio": "20:13",
+                                        "aspectMode": "cover",
+                                    },
+                                    {
+                                        "type": "text",
+                                        "text": "INVOICE",
+                                        "weight": "bold",
+                                        "size": "xl",
+                                        "color": "#1DB446",
+                                        "margin": "md",
+                                        "align": "center",
+                                    },
+                                ],
+                            },
+                            "body": {
+                                "type": "box",
+                                "layout": "vertical",
+                                "contents": [
+                                    {
+                                        "type": "text",
+                                        "text": f"Ref No: {new_bill.ref_number}",
+                                        "size": "sm",
+                                        "color": "#AAAAAA",
+                                    },
+                                    {
+                                        "type": "text",
+                                        "text": f"Bill No: {new_bill.bill_number}",
+                                        "size": "sm",
+                                        "color": "#AAAAAA",
+                                    },
+                                    {
+                                        "type": "text",
+                                        "text": f"วันที่: {thai_date}",
+                                        "size": "sm",
+                                        "color": "#AAAAAA",
+                                    },
+                                    {"type": "separator", "margin": "md"},
+                                    {
+                                        "type": "text",
+                                        "text": "Details",
+                                        "weight": "bold",
+                                        "margin": "md",
+                                    },
+                                    {
+                                        "type": "box",
+                                        "layout": "horizontal",
+                                        "contents": [
+                                            {
+                                                "type": "text",
+                                                "text": "Rent:",
+                                                "size": "sm",
+                                            },
+                                            {
+                                                "type": "text",
+                                                "text": f"{new_bill.rent} ฿",
+                                                "size": "sm",
+                                                "align": "end",
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        "type": "box",
+                                        "layout": "horizontal",
+                                        "contents": [
+                                            {
+                                                "type": "text",
+                                                "text": "Water:",
+                                                "size": "sm",
+                                            },
+                                            {
+                                                "type": "text",
+                                                "text": f"{new_bill.water} ฿",
+                                                "size": "sm",
+                                                "align": "end",
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        "type": "box",
+                                        "layout": "horizontal",
+                                        "contents": [
+                                            {
+                                                "type": "text",
+                                                "text": "Electric:",
+                                                "size": "sm",
+                                            },
+                                            {
+                                                "type": "text",
+                                                "text": f"{new_bill.electric} ฿",
+                                                "size": "sm",
+                                                "align": "end",
+                                            },
+                                        ],
+                                    },
+                                    {"type": "separator", "margin": "md"},
+                                    {
+                                        "type": "box",
+                                        "layout": "horizontal",
+                                        "contents": [
+                                            {
+                                                "type": "text",
+                                                "text": "Discount:",
+                                                "size": "sm",
+                                            },
+                                            {
+                                                "type": "text",
+                                                "text": f"{new_bill.discount} ฿",
+                                                "size": "sm",
+                                                "align": "end",
+                                            },
+                                        ],
+                                    },
+                                    {"type": "separator", "margin": "md"},
+                                    {
+                                        "type": "box",
+                                        "layout": "horizontal",
+                                        "contents": [
+                                            {
+                                                "type": "text",
+                                                "text": "Total:",
+                                                "weight": "bold",
+                                                "size": "lg",
+                                            },
+                                            {
+                                                "type": "text",
+                                                "text": f"{new_bill.total_vat} ฿",
+                                                "weight": "bold",
+                                                "size": "lg",
+                                                "align": "end",
+                                            },
+                                        ],
+                                    },
+                                    {"type": "separator", "margin": "md"},
+                                    {
+                                        "type": "box",
+                                        "layout": "vertical",
+                                        "contents": [
+                                            {
+                                                "type": "text",
+                                                "text": "คุณสามารถชำระเงินได้ที่",
+                                                "weight": "bold",
+                                                "margin": "md",
+                                                "size": "md",
+                                            },
+                                            {
+                                                "type": "box",
+                                                "layout": "horizontal",
+                                                "contents": [
+                                                    {
+                                                        "type": "box",
+                                                        "layout": "vertical",
+                                                        "contents": [
+                                                            {
+                                                                "type": "text",
+                                                                "text": "บริษัท รับเงินทองไม่จำกัด",
+                                                                "size": "sm",
+                                                                "margin": "none",
+                                                                "align": "start",
+                                                            },
+                                                            {
+                                                                "type": "text",
+                                                                "text": "เลขบัญชี: 788-1-17160-3",
+                                                                "size": "sm",
+                                                                "margin": "none",
+                                                                "align": "start",
+                                                            },
+                                                            {
+                                                                "type": "text",
+                                                                "text": "ธนาคารกรุงศรี อยุทธยา",
+                                                                "size": "sm",
+                                                                "margin": "none",
+                                                                "align": "start",
+                                                            },
+                                                        ],
+                                                        "spacing": "none",
+                                                        "margin": "none",
+                                                    },
+                                                ],
+                                                "spacing": "none",
+                                                "margin": "none",
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        },
+                    }
+
+                    send_line_notification(tenant.line_id, flex_message)
+                    notification = BillHaveNotification(
+                        notification_code=f"LINE-{new_bill.bill_number}",
+                        tenant_id=tenant.id,
+                        bill_id=new_bill.id,
+                        sent_to=tenant.line_id,
+                        notification_type="Invoice",
+                        note="Invoice sent via LINE",
+                        payload=json.dumps(flex_message),  # Store the message payload as JSON
+                        notification_channel="LINE",
+                        is_sent=True,
+                        created_by=created_by,
+                    )
+                    db.add(notification)
+                    db.commit()
+                except Exception as ex:
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Failed to send notification to LINE: {str(ex)}",
+                    )
+
+            results.append(
+                {
+                    "message": "Bill created successfully.",
+                    "bill_id": new_bill.id,
+                    "bill_number": new_bill.bill_number,
+                    "total": str(new_bill.total),
+                    "total_with_vat": str(new_bill.total_vat),
+                    "water_usage": str(new_bill.water_usage),
+                    "electric_usage": str(new_bill.electric_usage),
+                    "water_price": str(new_bill.water),
+                    "electric_price": str(new_bill.electric),
+                    "discount": str(bill_data.discount),
+                    "vat_percent": bill_data.vat_percent,
+                }
+            )
+
+        return results
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("main:app", host="0.0.0.0", port=4000, reload=True, workers=1)

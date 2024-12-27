@@ -68,3 +68,21 @@ def send_line_flex_message(line_id: str):
         )
 
 
+
+
+def send_line_notification(line_id: str, message: dict):
+    """
+    Sends a notification via LINE Messaging API.
+    """
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {LINE_CHANNEL_ACCESS_TOKEN}",
+    }
+    payload = {"to": line_id, "messages": [message]}
+    response = requests.post(
+        "https://api.line.me/v2/bot/message/push", headers=headers, json=payload
+    )
+    response.raise_for_status()  # Raise exception if request fails
+    return response.json()
+
+
