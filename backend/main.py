@@ -2187,7 +2187,7 @@ def create_bills(
                                         "action": {
                                             "type": "uri",
                                             "label": "ส่งหลักฐานการชำระเงิน",
-                                            "uri": f"https://backoffice.rnt.co.th//send-payment-slip?bill_number={new_bill.bill_number}&ref_number={new_bill.ref_number}",
+                                            "uri": f"https://backoffice.rnt.co.th/send-payment-slip?bill_number={new_bill.bill_number}&ref_number={new_bill.ref_number}",
                                         },
                                         "style": "primary",
                                         "color": "#1DB446",
